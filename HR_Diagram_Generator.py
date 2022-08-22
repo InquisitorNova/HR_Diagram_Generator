@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns; sns.set_theme(style = 'whitegrid')
 from matplotlib.colors import LogNorm
-
+plt.rcParams['figure.figsize'] = (16,9)
 """
 Created on Tue 16/08/2022 13:13
 
@@ -133,11 +133,14 @@ class HR_Diagram_Generator:
         self.Reduced_Sectors_DataSet_Fq_Cut = self.Reduced_Sectors_DataSet_Fq_Cut.rename(index = lambda x: self.nearest_five(x,5))
 
         Figure2,ax2 = plt.subplots()
-        heats = sns.heatmap(self.Reduced_Sectors_DataSet_Fq_Cut, linewidths = 0, norm = LogNorm(), cmap = 'rocket', cbar_kws = {'label': 'Number Density'}, zorder = -1)
+        heats = sns.heatmap(self.Reduced_Sectors_DataSet_Fq_Cut, linewidths = 0, norm = LogNorm(), cmap = 'rocket', cbar_kws = {'label': 'Number Density'}, zorder = 1)
         if plot_candidates:
-            sns.scatterplot(x = x_values,y = y_values, s = 2, color = 'c', markers = ["*"])
+            sns.scatterplot(x = x_values,y = y_values, s = 10, color = 'darkgreen', markers = ["*"], edgecolors = 'black',zorder = 2)
         plt.locator_params(axis = 'both', nbins = 7)
+        plt.axhline(2000,color = 'black')
+        plt.axvline(0,color = 'black')
         ax2.set_xlabel("Gaia BP_RP Colour")
         ax2.set_ylabel("Gaia G Absolute Magnitude")
+        plt.grid(zorder = -1)
         plt.savefig("HR_Diagram.pdf", bbox_inches = 'tight', dpi = 400, facecolor = 'w')
         plt.show()
