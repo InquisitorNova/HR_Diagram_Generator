@@ -1,3 +1,4 @@
+import enum
 import numpy as np
 import re
 import math
@@ -95,20 +96,51 @@ class HR_Diagram_Generator:
         self.Reduced_Candidates_Norm = self.Reduced_Candidates_Norm.rename(index = lambda x: float(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0]))
         self.Reduced_Candidates_Norm = self.Reduced_Candidates_Norm.fillna(0)
 
-        for index,Magnitude in enumerate(self.Reduced_Sectors_DataSet_Fq.columns.values):
-            if round(Magnitude) == math.ceil(Magnitude_Range[0]):
-                start_index_m = index
-            if round(Magnitude) == math.ceil(Magnitude_Range[1]):
-                end_index_m = index
+        tolerance_M = 0.005
+        tolerance_C = 0.005
+
+        lower_bound_0 = Magnitude_Range[0] - abs(Magnitude_Range[0]*tolerance_M)
+        upper_bound_0 = Magnitude_Range[0] + abs(Magnitude_Range[0]*tolerance_M)
+
+        lower_bound_1 = Magnitude_Range[1] - abs(Magnitude_Range[1]*tolerance_M)
+        upper_bound_1 = Magnitude_Range[1] + abs(Magnitude_Range[1]*tolerance_M)
         
-        for index,Color in enumerate(self.Reduced_Sectors_DataSet_Fq.index.values):
-            if round(Color) == math.ceil(Color_Range[0]):
-                start_index_c = index
-            if round(Color) == math.ceil(Color_Range[1]):
-                end_index_c = index
+        for index,Magnitude in enumerate(self.Reduced_Sectors_DataSet_Fq.index.values):
+                if Magnitude >= lower_bound_0 and Magnitude <= upper_bound_0:
+                    start_index_m = index
+        for index,Magnitude in enumerate(self.Reduced_Sectors_DataSet_Fq.index.values):
+                if Magnitude >= lower_bound_1 and Magnitude <= upper_bound_1:
+                    end_index_m = index
+
+        lower_bound_0 = Color_Range[0] - abs(Color_Range[0]*tolerance_C)
+        upper_bound_0 = Color_Range[0] + abs(Color_Range[0]*tolerance_C)
+
+        lower_bound_1 = Color_Range[1] - abs(Color_Range[1]*tolerance_C)
+        upper_bound_1 = Color_Range[1] + abs(Color_Range[1]*tolerance_C)
+
+        for index,Color in enumerate(self.Reduced_Sectors_DataSet_Fq.columns.values):
+                if Color >= lower_bound_0 and Color <= upper_bound_0:
+                    start_index_c = index
+        for index,Color in enumerate(self.Reduced_Sectors_DataSet_Fq.columns.values):
+                if Color >= lower_bound_1 and Color <= upper_bound_1:
+                    end_index_c = index
         
-        self.Reduced_Sectors_DataSet_Fq_Cut = self.Reduced_Sectors_DataSet_Fq.iloc[start_index_c:end_index_c,start_index_m:end_index_m]
-        self.Reduced_Candidates_Norm_Cut = self.Reduced_Candidates_Norm.iloc[start_index_c:end_index_c,start_index_m:end_index_m]
+        try: start_index_c
+        except NameError:
+            start_index_c = 0
+        try: end_index_c
+        except:
+            end_index_c = len(self.Reduced_Sectors_DataSet_Fq.columns.values) - 1
+        
+        try: start_index_m
+        except NameError:
+            start_index_m = 0
+        try: end_index_m
+        except:
+            end_index_m = len(self.Reduced_Sectors_DataSet_Fq.index.values) - 1
+
+        self.Reduced_Sectors_DataSet_Fq_Cut = self.Reduced_Sectors_DataSet_Fq.iloc[start_index_m:end_index_m+10,start_index_c:end_index_c+10]
+        self.Reduced_Candidates_Norm_Cut = self.Reduced_Candidates_Norm.iloc[start_index_m:end_index_m+10,start_index_c:end_index_c+10]
         
         for index in range(0,len(self.Reduced_Candidates_Norm_Cut.index.values)):
             self.Reduced_Candidates_Norm_Cut.index.values[index] = index
@@ -133,14 +165,16 @@ class HR_Diagram_Generator:
         self.Reduced_Sectors_DataSet_Fq_Cut = self.Reduced_Sectors_DataSet_Fq_Cut.rename(index = lambda x: self.nearest_five(x,5))
 
         Figure2,ax2 = plt.subplots()
-        heats = sns.heatmap(self.Reduced_Sectors_DataSet_Fq_Cut, linewidths = 0, norm = LogNorm(), cmap = 'rocket', cbar_kws = {'label': 'Number Density'}, zorder = 1)
+        heats = sns.heatmap(self.Reduced_Sectors_DataSet_Fq_Cut, linewidths = 0, norm = LogNorm(), cmap = 'rocket', cbar_kws = {'label': 'Number Density'})
         if plot_candidates:
-            sns.scatterplot(x = x_values,y = y_values, s = 10, color = 'darkgreen', markers = ["*"], edgecolors = 'black',zorder = 2)
-        plt.locator_params(axis = 'both', nbins = 7)
-        plt.axhline(2000,color = 'black')
-        plt.axvline(0,color = 'black')
+            sns.scatterplot(x = x_values,y = y_values, s = 25, color = 'navy', markers = ["*"], edgecolors = 'black')
+        plt.locator_params(axis = 'both', nbins = 10)
+        pos = (end_index_m-start_index_m) + 9
+        plt.axhline(pos,color = 'black')
+        plt.axvline(1,color = 'black')
         ax2.set_xlabel("Gaia BP_RP Colour")
         ax2.set_ylabel("Gaia G Absolute Magnitude")
-        plt.grid(zorder = -1)
-        plt.savefig("HR_Diagram.pdf", bbox_inches = 'tight', dpi = 400, facecolor = 'w')
+        print(start_index_c,end_index_c,start_index_m,end_index_m)
+        plt.grid()
+        plt.savefig("HR_Diagram.pdf", bbox_inches = 'tight', dpi = 1000, facecolor = 'w')
         plt.show()
