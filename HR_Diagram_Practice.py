@@ -15,6 +15,6 @@ r"D:\44730\Documents\URSS Exoplanet Research\HR-Diagram PositionData\Sector12_Po
 r"D:\44730\Documents\URSS Exoplanet Research\HR-Diagram PositionData\Sector13_Position_Data_v2.csv"
 )
 
-Sector1to13.add_Candidate_Stars(r"D:\44730\Documents\URSS Exoplanet Research\CandidateData\GDR3_DataSet_Results_Stars_FInal.csv",r"D:\44730\Documents\URSS Exoplanet Research\CandidateData\Astrophysical_Parameters_Results_Stars_Final.csv")
-
-Sector1to13.Plot_HR_Diagram_Using_Heatmap(['parallax','distance_gspphot'],'phot_g_mean_mag','bp_rp',[-6.0,13.5],[-0.5,4], 2000, True)
+Sector1to13.add_Candidate_Stars(r"D:\44730\Documents\URSS Exoplanet Research\CandidateData\Candidates_Updated.csv",r"D:\44730\Documents\URSS Exoplanet Research\CandidateData\Astrophysical_Parameters_Results_Stars_Final.csv")
+Sector1to13.Candidates_DataSet.info()
+Sector1to13.Plot_HR_Diagram_Using_Heatmap(['parallax','parallax'],'phot_g_mean_mag','bp_rp',[-7.0,14.0],[-0.5,5,0], 2000, True)
