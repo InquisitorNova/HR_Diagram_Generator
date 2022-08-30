@@ -1,6 +1,8 @@
 from pickletools import read_unicodestring8
+from unittest.util import strclass
 import numpy as np
-import math
+import time
+from statistics import mean
 import re
 import warnings
 import matplotlib.pyplot as plt
@@ -39,8 +41,11 @@ class HR_Diagram_Generator:
     def Bin_Locator(self,DataFrame,Value,tolerance,series,zero_points):
             locator_weight = 0.00001
             early_stopping = 5
-            zeropoint_row = zero_points[0]
-            zeropoint_column = zero_points[1]
+            if type(zero_points) != str:    
+                zeropoint_row = zero_points[0]
+                zeropoint_column = zero_points[1]
+            else:
+                print(zero_points)
             if Value == 0.0 and series in "columns":
                     bin_index = zeropoint_column
                     value_chosen = DataFrame.columns[zeropoint_column]
@@ -95,11 +100,63 @@ class HR_Diagram_Generator:
                 return(int(bin_index),value_chosen,index)
             except NameError:
                 print("Cannot find bin index for ",Value,tolerance,series)
-    
+    def Extend_Table(self,DataFrame,avg_dist_in,avg_dist_col,Col_Range,Mag_Range):
+        case = True
+        while case:
+            lower_bound_m = DataFrame.index.values[0]
+            upper_bound_m = DataFrame.index.values[-1]
+
+            lower_bound_c = DataFrame.columns.values[0]
+            upper_bound_c = DataFrame.columns.values[-1]
+
+            if abs(Mag_Range[0]) + 1 > abs(lower_bound_m):
+                index_value = DataFrame.index.values[0] - avg_dist_in
+                data = {key:value for key,value in zip(DataFrame.columns.values,np.zeros(len(DataFrame.columns.values),dtype = int))}
+                row = pd.DataFrame(data, index = [index_value])
+                frames = [row,DataFrame]
+                DataFrame = pd.concat(frames, axis = 0)
+            
+            elif abs(Mag_Range[1]) + 1 > abs(upper_bound_m):
+                index = DataFrame.index.values[-1] + avg_dist_in 
+                DataFrame.loc[index] = np.zeros(len(DataFrame.columns.values), dtype = int)
+            
+            elif abs(Col_Range[0]) + 1  > abs(lower_bound_c):
+                DataFrame.insert(0,DataFrame.columns.values[0] - avg_dist_col, 0)
+        
+            elif abs(Col_Range[1]) + 1 > abs(upper_bound_c):
+                column_name = DataFrame.columns.values[-1] + avg_dist_col
+                column_values = np.zeros(len(DataFrame.index.values), dtype = int)
+                datas = {column_name:column_values}
+                column = pd.DataFrame(data = datas, index = DataFrame.index.values)
+                frames = [DataFrame,column]
+                DataFrame = pd.concat(frames, axis = 1)
+            else:
+                case = False
+                return DataFrame
+    def Avg_Finder(self,DataFrame):
+        difference_0 = []
+        difference_1 = []
+        for index in range(0,len(DataFrame.columns.values)):
+            try:
+                diff = DataFrame.columns.values[index+1] - DataFrame.columns.values[index]
+                difference_0.append(diff)
+            except IndexError:
+                continue
+        for index in range(0,len(DataFrame.index.values)):
+            try:
+                diff = DataFrame.index.values[index+1] - DataFrame.index.values[index]
+                difference_1.append(diff)
+            except IndexError:
+                continue
+        average_distance_columns = mean(difference_0)
+        average_distance_index = mean(difference_1)
+        return average_distance_columns,average_distance_index
+
     def __init__(self, *Sectors):
         self.Sectors_DataSet = pd.DataFrame()
         for Sector in Sectors:
             self.Sectors_DataSet = pd.concat([self.Sectors_DataSet,pd.read_csv(Sector)])
+        self.Sectors_DataSet.drop_duplicates(subset = ["source_id"],inplace = True)
 
     def add_Candidate_Stars(self,*Candidates):
         self.Candidates_DataSet = pd.read_csv(Candidates[0])
@@ -111,6 +168,7 @@ class HR_Diagram_Generator:
             print("Out_Of_Bounds")
 
     def Plot_HR_Diagram_Using_Heatmap(self,Distance_Measure,Magnitude_Measure,Color_Measure,bin_resolution,Magnitude_Range = "Default",Color_Range = "Default",plot_candidates = True):
+        start_time = time.time()
         if re.match("parallax",Distance_Measure[0]):
             self.Sectors_DataSet['Distance'] = 1/(self.Sectors_DataSet[Distance_Measure[0]]/1000)
             self.Sectors_DataSet['Absolute_Magnitude'] = self.Sectors_DataSet[Magnitude_Measure] - 5*np.log10(self.Sectors_DataSet.Distance/10)
@@ -156,12 +214,12 @@ class HR_Diagram_Generator:
             print(f"The percentage of the Candidates DataSet with missing colors is {round(self.Missing_Color_Percentage_Candidates,3)}%")
         
         if type(Color_Range) == str:
-            if "Default" in Color_Range:
                 Color_Range = [self.Sectors_DataSet[Color_Measure].min(),self.Sectors_DataSet[Color_Measure].max(),0.5]
         if type(Magnitude_Range) == str:
-            if "Default" in Magnitude_Range:
                 Magnitude_Range = [self.Sectors_DataSet[Magnitude_Measure].min(),self.Sectors_DataSet[Magnitude_Measure].max(),0.5]
-            
+        
+        print("The Color_Range and Magnitude_Range are: " ,Color_Range,Magnitude_Range)  
+        
         self.Filled_Colors_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.bp_rp.isnull() == False])
         self.Empty_Colors_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.bp_rp.isnull() == True])
         self.Missing_Color_Percentage_Sectors = self.Empty_Colors_Sectors/(self.Empty_Colors_Sectors+self.Filled_Colors_Sectors)*100
@@ -212,6 +270,7 @@ class HR_Diagram_Generator:
         Lister = pd.DataFrame(data)
         Lister.drop_duplicates(inplace = True)
         bins_CatsAbsMag = [getattr(row,'row') for row in Lister.itertuples()]
+
         if plot_candidates:
             self.Candidates_DataSet['CatColor'] = pd.cut(self.Candidates_DataSet[Color_Measure],bins = bins_Color,ordered = True)
             self.Candidates_DataSet['CatAbsMag'] = pd.cut(self.Candidates_DataSet.Absolute_Magnitude,bins = bins_CatsAbsMag, ordered = True)
@@ -228,10 +287,19 @@ class HR_Diagram_Generator:
             self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(columns = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
             self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
             self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.fillna(0)
+        
+        avg_dist_col_sector,avg_dist_in_sector = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt)
+        avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt)
+        Sector_Norm = self.Extend_Table(self.Reduced_Sectors_DataSet_Fqt,avg_dist_in_sector,avg_dist_col_sector,Color_Range,Magnitude_Range)
+        Candidates_Norm = self.Extend_Table(self.Reduced_Candidates_Fqt,avg_dist_in_candidates,avg_dist_col_candidates,Color_Range,Magnitude_Range)
 
-
+        self.Reduced_Sectors_DataSet_Fqt = Sector_Norm.copy()
+        self.Reduced_Candidates_Fqt = Candidates_Norm.copy()
+        
         value_drop_row,value_drop_column = 0.009,0.009
         comparison_row,comparison_column = 0.01,0.01
+        value_chosen_row = 10
+        value_chosen_column = 10
         for incrementor in range(0,100):
             for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt.index.values):
                 if abs(value) < abs(value_drop_row):
@@ -255,13 +323,11 @@ class HR_Diagram_Generator:
             except:
                 pass
         try:
-            zeropoint_row
-            value_chosen_row
-            zeropoint_column
-            value_chosen_column
+            zero_points = [zeropoint_row,zeropoint_column]
         except:
             print("Zeropoints not found")
-        zero_points = [zeropoint_row,zeropoint_column]
+            zero_points = "NaN"
+
         
         self.padding_start_m = -0.1
         self.padding_end_m = 0.1
@@ -279,11 +345,12 @@ class HR_Diagram_Generator:
         end_index_m = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,end_m,0.008,"rows",zero_points)[0]
         start_index_c = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,start_c,0.008,"columns",zero_points)[0] -10 
         end_index_c = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,end_c,0.001,"columns",zero_points)[0]
-
+            
         self.Reduced_Sectors_DataSet_Fqt_Cut = self.Reduced_Sectors_DataSet_Fqt.iloc[start_index_m:end_index_m+1,start_index_c:end_index_c+1]
+        print(self.Reduced_Candidates_DataSet.shape)
         if plot_candidates:
             self.Reduced_Candidates_Fqt_Cut = self.Reduced_Candidates_Fqt.iloc[start_index_m:end_index_m+1,start_index_c:end_index_c+1]
-        
+            
             for index in range(0,len(self.Reduced_Candidates_Fqt_Cut.index.values)):
                 self.Reduced_Candidates_Fqt_Cut.index.values[index] = index
             for index in range(0,len(self.Reduced_Candidates_Fqt_Cut.columns.values)):
@@ -291,6 +358,8 @@ class HR_Diagram_Generator:
         
         value_drop_row,value_drop_column = 0.009,0.009
         comparison_row,comparison_column = 0.01,0.01
+        value_chosen_row = 10
+        value_chosen_column = 10
         for incremator in range(0,100):
             for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt_Cut.index.values):
                 if abs(value) < abs(value_drop_row):
@@ -309,13 +378,10 @@ class HR_Diagram_Generator:
                 comparison_column = value_chosen_column
                 value_drop_column = value_chosen_column    
             try:
-                zeropoint_row
-                value_chosen_row
-                zeropoint_column
-                value_chosen_column
+                zero_points = [zeropoint_row,zeropoint_column]
             except:
                 print("Zeropoints not found")
-            zero_points = [zeropoint_row,zeropoint_column]
+                zero_points = "NaN"
 
         tolerance = 0.008
         Color_Range = np.arange(Color_Range[0],Color_Range[1]+0.5,Color_Range[2])
@@ -337,7 +403,7 @@ class HR_Diagram_Generator:
                 Positions_Of_Magnitude_Ticks.append(self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Magnitude,tolerance,"rows",zero_points)[0])
             except:
                 print("Could not find Magnitude value: ",self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Magnitude,tolerance,"rows",zero_points))
-
+        print("Magnitude Range: ",Magnitudes_Range)
         if plot_candidates:
             self.Candidates_DataSet.dropna(subset = ["CatColor","CatAbsMag"],inplace = True)
             mapping_tool_rows = {key:value for key,value in zip(self.Reduced_Sectors_DataSet_Fqt_Cut.index.values,self.Reduced_Candidates_Fqt_Cut.index.values)}
@@ -372,7 +438,8 @@ class HR_Diagram_Generator:
             if element.is_integer() and element % 2 == 0:
                 labels_y_axis.append(int(element))
                 temp.append(label_index)
-                print("Y_value is",element)
+        
+        print("The candidate coordinates are: ",x_values,y_values)
 
         Positions_Of_Magnitude_Ticks_Adjusted = temp
 
@@ -433,30 +500,42 @@ class HR_Diagram_Generator:
                 
         self.Reduced_Sectors_DataSet_Fqt_Cut = self.Reduced_Sectors_DataSet_Fqt_Cut.rename(columns = lambda x: self.nearest_base(x,1))
         self.Reduced_Sectors_Data = self.Reduced_Sectors_DataSet_Fqt_Cut.rename(index = lambda x: self.nearest_base(x,1))
+
         Figure_4 = plt.figure()
-        ax_4 = sns.heatmap(self.Reduced_Sectors_DataSet_Fqt_Cut,norm = LogNorm(),cmap = 'rocket', cbar_kws = {'label': 'Number Density','pad':0.05}, linewidths = 0)
-        #Figure_4 = plt.Figure()
+        ax_4 = sns.heatmap(self.Reduced_Sectors_DataSet_Fqt_Cut,norm = LogNorm(),cmap = 'rocket', cbar_kws = {'label': 'Number Density','pad':0.01}, linewidths = 0)
         plt.rc('font',size = 30)
-        #cb_ax = Figure_4.axes[1]
-        #cb_ax.tick_params(labelsize =15)
-        #cb_ax.set_label(label = "Number Density", labelsize = 20)
-        #colors = cm.ScalarMappable(norm = LogNorm(), label = "Number Density", fontsize = 20 )
-        #sns.color_palette("rocket", as_cmap=True)
-        #colors.set_label("Number Density")
-        #colors.tick_params(labelsize = 20)
+        cbar = ax_4.collections[0].colorbar
+
+        cbar.ax.tick_params(labelsize = 20)
+        cbar.set_label(label = "Number Density", fontsize = 20, fontname = "Times New Roman")
+
+        for l in cbar.ax.yaxis.get_ticklabels():
+            l.set_family("Times New Roman")
+
         if plot_candidates:
             sns.scatterplot(x = x_values,y = y_values, s = 30, color = 'navy', markers = ["*"], edgecolors = 'black')
+
         ax_4.xaxis.set_major_locator(ticker.FixedLocator(Positions_Of_Color_Ticks))
         ax_4.yaxis.set_major_locator(ticker.FixedLocator(Positions_Of_Magnitude_Ticks_Adjusted))
         ax_4.tick_params(which = 'major', width = 0.5, length = 1, labelsize = 20)
         ax_4.xaxis.set_major_formatter(ticker.FixedFormatter(labels_x_axis))
         ax_4.yaxis.set_major_formatter(ticker.FixedFormatter(labels_y_axis))
         pos = (end_index_m-(start_index_m+1))
+
         plt.axhline(pos,color = 'black')
         plt.axvline(1,color = 'black')
-        ax_4.set_xlabel("Gaia BP_RP Colour",fontsize = 20)
-        ax_4.set_ylabel("Gaia G Absolute Magnitude",fontsize = 20)
+        ax_4.set_xlabel("Gaia BP_RP Colour",fontsize = 20,fontname = "Times New Roman")
+        ax_4.set_ylabel("Gaia G Absolute Magnitude",fontsize = 20, fontname = "Times New Roman")
+
+        for tick in ax_4.get_xticklabels():
+            tick.set_fontname("Times New Roman")
+        for tick in ax_4.get_yticklabels():
+            tick.set_fontname("Times New Roman")
+    
         print(start_index_c,end_index_c,start_index_m,end_index_m)
         plt.grid()
+
         Figure_4.savefig("HR_Diagram.png", bbox_inches = 'tight', dpi = 400, facecolor = 'w')
+        time_interval = time.time()-start_time
+        print("This process took: ",time_interval)
         plt.show()
