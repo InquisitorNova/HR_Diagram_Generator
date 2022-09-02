@@ -76,7 +76,9 @@ with open(r"C:\Users\44730\Downloads\Cait_Cullen_HR_Diagram_Gaia_Source_ids_4.tx
                     for tic in TIC_processed:
                         file.write(tic)
                     file.close()
-            if len(TIC_ids) == 0 or len(TIC_processed) == length:
+                TIC_processed =  []
+                id_count = 0
+            if len(TIC_ids) <= 0 or len(TIC_processed) >= length:
                 break
 file.close()
 
