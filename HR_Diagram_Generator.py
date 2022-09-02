@@ -1,4 +1,5 @@
 from pickletools import read_unicodestring8
+from tempfile import TemporaryFile
 from unittest.util import strclass
 import numpy as np
 import time
@@ -153,10 +154,10 @@ class HR_Diagram_Generator:
         return average_distance_columns,average_distance_index
 
     def __init__(self, *Sectors):
-        self.Sectors_DataSet = pd.DataFrame()
+        self.Sectors_DataSet_Original = pd.DataFrame()
         for Sector in Sectors:
-            self.Sectors_DataSet = pd.concat([self.Sectors_DataSet,pd.read_csv(Sector)])
-        self.Sectors_DataSet.drop_duplicates(subset = ["source_id"],inplace = True)
+            self.Sectors_DataSet_Original = pd.concat([self.Sectors_DataSet_Original,pd.read_csv(Sector)])
+        self.Sectors_DataSet_Original.drop_duplicates(subset = ["source_id"],inplace = True)
 
     def add_Candidate_Stars(self,*Candidates):
         self.Candidates_DataSet = pd.read_csv(Candidates[0])
@@ -167,8 +168,17 @@ class HR_Diagram_Generator:
         except IndexError:
             print("Out_Of_Bounds")
 
-    def Plot_HR_Diagram_Using_Heatmap(self,Distance_Measure,Magnitude_Measure,Color_Measure,bin_resolution,Magnitude_Range = "Default",Color_Range = "Default",plot_candidates = True):
+    def get_length_Of_Sector_DataSet(self):
+        return len(self.Sectors_DataSet_Original)
+
+    def Plot_HR_Diagram_Using_Heatmap(self,Distance_Measure,Magnitude_Measure,Color_Measure,bin_resolution = "Default",Magnitude_Range = "Default",Color_Range = "Default",plot_candidates = True,filter = 0):
+        
         start_time = time.time()
+        self.Sectors_DataSet = self.Sectors_DataSet_Original.copy()
+        Maximum_index_Sectors = len(self.Sectors_DataSet)
+        self.Sectors_DataSet = self.Sectors_DataSet.iloc[:Maximum_index_Sectors-filter]
+        print("The length of the Sectors DataSet is: ",len(self.Sectors_DataSet))
+
         if re.match("parallax",Distance_Measure[0]):
             self.Sectors_DataSet['Distance'] = 1/(self.Sectors_DataSet[Distance_Measure[0]]/1000)
             self.Sectors_DataSet['Absolute_Magnitude'] = self.Sectors_DataSet[Magnitude_Measure] - 5*np.log10(self.Sectors_DataSet.Distance/10)
@@ -247,6 +257,9 @@ class HR_Diagram_Generator:
             self.Missing_Data_Percentage_Candidates = ((self.Empty_Distance_Candidates+self.Empty_Colors_Candidates)-len(B))/len(self.Candidates_DataSet)*100
             print(f"The percentage of the Candidates DataSet that will be missing from the HR_Diagram is {round(self.Missing_Data_Percentage_Candidates,3)}%")
         
+        if type(bin_resolution) == str:
+            bin_resolution = 0.0009*len(self.Sectors_DataSet)+1000
+
         self.Sectors_DataSet['CatAbsMag'] = pd.cut(self.Sectors_DataSet.Absolute_Magnitude,bins = bin_resolution, ordered = True)
         self.Sectors_DataSet['CatColor'] = pd.cut(self.Sectors_DataSet[Color_Measure],bins = bin_resolution, ordered = True)
 
@@ -291,10 +304,12 @@ class HR_Diagram_Generator:
         avg_dist_col_sector,avg_dist_in_sector = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt)
         avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt)
         Sector_Norm = self.Extend_Table(self.Reduced_Sectors_DataSet_Fqt,avg_dist_in_sector,avg_dist_col_sector,Color_Range,Magnitude_Range)
-        Candidates_Norm = self.Extend_Table(self.Reduced_Candidates_Fqt,avg_dist_in_candidates,avg_dist_col_candidates,Color_Range,Magnitude_Range)
+        if plot_candidates:
+            Candidates_Norm = self.Extend_Table(self.Reduced_Candidates_Fqt,avg_dist_in_candidates,avg_dist_col_candidates,Color_Range,Magnitude_Range)
 
         self.Reduced_Sectors_DataSet_Fqt = Sector_Norm.copy()
-        self.Reduced_Candidates_Fqt = Candidates_Norm.copy()
+        if plot_candidates:    
+            self.Reduced_Candidates_Fqt = Candidates_Norm.copy()
         
         value_drop_row,value_drop_column = 0.009,0.009
         comparison_row,comparison_column = 0.01,0.01
@@ -322,6 +337,16 @@ class HR_Diagram_Generator:
                     value_drop_column = value_chosen_column    
             except:
                 pass
+            try:
+                zeropoint_row
+            except NameError:
+                value_drop_row *= 1.05
+                comparison_row *= 1.05
+            try:
+                zeropoint_column
+            except NameError:
+                value_drop_column *= 1.05
+                comparison_column *= 1.05
         try:
             zero_points = [zeropoint_row,zeropoint_column]
         except:
@@ -343,12 +368,12 @@ class HR_Diagram_Generator:
 
         start_index_m = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,start_m,0.02,"rows",zero_points)[0]
         end_index_m = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,end_m,0.008,"rows",zero_points)[0]
-        start_index_c = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,start_c,0.008,"columns",zero_points)[0] -10 
+        start_index_c = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,start_c,0.008,"columns",zero_points)[0]
         end_index_c = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,end_c,0.001,"columns",zero_points)[0]
             
         self.Reduced_Sectors_DataSet_Fqt_Cut = self.Reduced_Sectors_DataSet_Fqt.iloc[start_index_m:end_index_m+1,start_index_c:end_index_c+1]
-        print(self.Reduced_Candidates_DataSet.shape)
         if plot_candidates:
+            print(self.Reduced_Candidates_DataSet.shape)
             self.Reduced_Candidates_Fqt_Cut = self.Reduced_Candidates_Fqt.iloc[start_index_m:end_index_m+1,start_index_c:end_index_c+1]
             
             for index in range(0,len(self.Reduced_Candidates_Fqt_Cut.index.values)):
@@ -376,7 +401,17 @@ class HR_Diagram_Generator:
     
             if abs(value_chosen_column) < abs(comparison_column):
                 comparison_column = value_chosen_column
-                value_drop_column = value_chosen_column    
+                value_drop_column = value_chosen_column
+            try:
+                zeropoint_row
+            except NameError:
+                value_drop_row *= 1.05
+                comparison_row *= 1.05
+            try:
+                zeropoint_column
+            except NameError:
+                value_drop_column *= 1.05
+                comparison_column *= 1.05
             try:
                 zero_points = [zeropoint_row,zeropoint_column]
             except:
@@ -439,7 +474,8 @@ class HR_Diagram_Generator:
                 labels_y_axis.append(int(element))
                 temp.append(label_index)
         
-        print("The candidate coordinates are: ",x_values,y_values)
+        if plot_candidates:
+            print("The candidate coordinates are: ",x_values,y_values)
 
         Positions_Of_Magnitude_Ticks_Adjusted = temp
 
@@ -506,8 +542,11 @@ class HR_Diagram_Generator:
         plt.rc('font',size = 30)
         cbar = ax_4.collections[0].colorbar
 
+        cbar.ax.get_yaxis().set_ticks([cbar.vmin,(cbar.vmax-cbar.vmin)/2,cbar.vmax])
         cbar.ax.tick_params(labelsize = 20)
         cbar.set_label(label = "Number Density", fontsize = 20, fontname = "Times New Roman")
+        #cbar.set_ticks([1,10,100])
+        cbar.set_ticklabels([round(cbar.vmin),round((cbar.vmax-cbar.vmin)/2),round(cbar.vmax)])
 
         for l in cbar.ax.yaxis.get_ticklabels():
             l.set_family("Times New Roman")
@@ -524,8 +563,8 @@ class HR_Diagram_Generator:
 
         plt.axhline(pos,color = 'black')
         plt.axvline(1,color = 'black')
-        ax_4.set_xlabel("Gaia BP_RP Colour",fontsize = 20,fontname = "Times New Roman")
-        ax_4.set_ylabel("Gaia G Absolute Magnitude",fontsize = 20, fontname = "Times New Roman")
+        ax_4.set_xlabel(r"$G_{BP} - G_{RP}$",fontsize = 20,fontname = "Times New Roman")
+        ax_4.set_ylabel(r"$M_{G}$",fontsize = 20, fontname = "Times New Roman")
 
         for tick in ax_4.get_xticklabels():
             tick.set_fontname("Times New Roman")
@@ -538,4 +577,13 @@ class HR_Diagram_Generator:
         Figure_4.savefig("HR_Diagram.png", bbox_inches = 'tight', dpi = 400, facecolor = 'w')
         time_interval = time.time()-start_time
         print("This process took: ",time_interval)
-        plt.show()
+
+        if filter == 0:
+            print("The filter applied is: ",filter)
+            plt.show()
+
+        if filter != 0:
+            print("The filter applied is: ",filter)
+            plt.clf()
+            plt.close()
+            return time_interval
