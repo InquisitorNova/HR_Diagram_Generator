@@ -153,13 +153,15 @@ class HR_Diagram_Generator:
         average_distance_index = mean(difference_1)
         return average_distance_columns,average_distance_index
 
-    def __init__(self, *Sectors):
+    def __init__(self, Sectors):
         self.Sectors_DataSet_Original = pd.DataFrame()
-        for Sector in Sectors:
-            self.Sectors_DataSet_Original = pd.concat([self.Sectors_DataSet_Original,pd.read_csv(Sector)])
-        self.Sectors_DataSet_Original.drop_duplicates(subset = ["source_id"],inplace = True)
-
-    def add_Candidate_Stars(self,*Candidates):
+        try:
+            for Sector in Sectors:
+                self.Sectors_DataSet_Original = pd.concat([self.Sectors_DataSet_Original,pd.read_csv(Sector)])
+            self.Sectors_DataSet_Original.drop_duplicates(subset = ["source_id"],inplace = True)
+        except:
+            print("Entered in bad file paths")
+    def add_Candidate_Stars(self,Candidates):
         self.Candidates_DataSet = pd.read_csv(Candidates[0])
         try:
             for index in range(1,len(Candidates)):
@@ -381,10 +383,11 @@ class HR_Diagram_Generator:
             for index in range(0,len(self.Reduced_Candidates_Fqt_Cut.columns.values)):
                 self.Reduced_Candidates_Fqt_Cut.columns.values[index] = index
         
-        value_drop_row,value_drop_column = 0.009,0.009
-        comparison_row,comparison_column = 0.01,0.01
+        value_drop_row,value_drop_column = 0.1,0.1
+        comparison_row,comparison_column = 0.1,0.1
         value_chosen_row = 10
         value_chosen_column = 10
+
         for incremator in range(0,100):
             for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt_Cut.index.values):
                 if abs(value) < abs(value_drop_row):
@@ -464,6 +467,8 @@ class HR_Diagram_Generator:
         labels_x_axis = []
         for label_index in Positions_Of_Color_Ticks:
             element = round(self.Reduced_Sectors_DataSet_Fqt_Cut.columns[label_index],1)
+            if abs(element) == 0.0:
+                element = abs(element)
             labels_x_axis.append(element)
 
         labels_y_axis = []
@@ -471,6 +476,8 @@ class HR_Diagram_Generator:
         for label_index in Positions_Of_Magnitude_Ticks:
             element = round(self.Reduced_Sectors_DataSet_Fqt_Cut.index[label_index],1)
             if element.is_integer() and element % 2 == 0:
+                if abs(element) == 0.0:
+                    element = abs(element)
                 labels_y_axis.append(int(element))
                 temp.append(label_index)
         
@@ -542,11 +549,11 @@ class HR_Diagram_Generator:
         plt.rc('font',size = 30)
         cbar = ax_4.collections[0].colorbar
 
-        cbar.ax.get_yaxis().set_ticks([cbar.vmin,(cbar.vmax-cbar.vmin)/2,cbar.vmax])
+        cbar.ax.get_yaxis().set_ticks([cbar.vmin,np.sqrt((cbar.vmax-cbar.vmin)),cbar.vmax])
         cbar.ax.tick_params(labelsize = 20)
         cbar.set_label(label = "Number Density", fontsize = 20, fontname = "Times New Roman")
         #cbar.set_ticks([1,10,100])
-        cbar.set_ticklabels([round(cbar.vmin),round((cbar.vmax-cbar.vmin)/2),round(cbar.vmax)])
+        cbar.set_ticklabels([round(cbar.vmin),round(np.sqrt((cbar.vmax-cbar.vmin))),round(cbar.vmax)])
 
         for l in cbar.ax.yaxis.get_ticklabels():
             l.set_family("Times New Roman")
