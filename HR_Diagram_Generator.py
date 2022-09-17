@@ -1,6 +1,4 @@
-from pickletools import read_unicodestring8
-from tempfile import TemporaryFile
-from unittest.util import strclass
+from tkinter import Y
 import numpy as np
 import time
 from statistics import mean
@@ -9,7 +7,7 @@ import warnings
 import matplotlib.pyplot as plt
 import pandas as pd 
 import seaborn as sns; sns.set_theme(style = 'whitegrid')
-from matplotlib.colors import LogNorm,Normalize
+from matplotlib.colors import LogNorm
 import matplotlib.ticker as ticker
 from scipy.stats import linregress
 from matplotlib.pyplot import cm
@@ -173,13 +171,14 @@ class HR_Diagram_Generator:
     def get_length_Of_Sector_DataSet(self):
         return len(self.Sectors_DataSet_Original)
 
-    def Plot_HR_Diagram_Using_Heatmap(self,Distance_Measure,Magnitude_Measure,Color_Measure,bin_resolution = "Default",Magnitude_Range = "Default",Color_Range = "Default",plot_candidates = True,filter = 0):
+    def Plot_HR_Diagram_Using_Heatmap(self,Distance_Measure,Magnitude_Measure,Color_Measure,bin_resolution = "Default",Magnitude_Range = "Default",Color_Range = "Default",plot_candidates = True,filter = 0,image_resolution = 400, filter_range = [0]):
         
         start_time = time.time()
         self.Sectors_DataSet = self.Sectors_DataSet_Original.copy()
         Maximum_index_Sectors = len(self.Sectors_DataSet)
         self.Sectors_DataSet = self.Sectors_DataSet.iloc[:Maximum_index_Sectors-filter]
-        print("The length of the Sectors DataSet is: ",len(self.Sectors_DataSet))
+
+        print("The original number of stars plotted from the Sectors DataSet is: ",len(self.Sectors_DataSet))
 
         if re.match("parallax",Distance_Measure[0]):
             self.Sectors_DataSet['Distance'] = 1/(self.Sectors_DataSet[Distance_Measure[0]]/1000)
@@ -259,6 +258,9 @@ class HR_Diagram_Generator:
             self.Missing_Data_Percentage_Candidates = ((self.Empty_Distance_Candidates+self.Empty_Colors_Candidates)-len(B))/len(self.Candidates_DataSet)*100
             print(f"The percentage of the Candidates DataSet that will be missing from the HR_Diagram is {round(self.Missing_Data_Percentage_Candidates,3)}%")
         
+        self.Sectors_DataSet = self.Sectors_DataSet[self.Sectors_DataSet.parallax.ge(0)]
+        self.Sectors_DataSet = self.Sectors_DataSet[self.Sectors_DataSet.parallax_error < 0.4]
+
         if type(bin_resolution) == str:
             bin_resolution = 0.0009*len(self.Sectors_DataSet)+1000
 
@@ -296,6 +298,8 @@ class HR_Diagram_Generator:
         self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
         self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.fillna(0)
         
+        self.Reduced_Sectors_DataSet_Fqt.replace(to_replace = np.arange(0,2,1),value = 0,inplace = True)
+
         if plot_candidates:
             self.Reduced_Candidates_DataSet = self.Candidates_DataSet[["CatColor","CatAbsMag"]]
             self.Reduced_Candidates_Fqt = pd.crosstab(index = self.Reduced_Candidates_DataSet.CatAbsMag,columns = self.Reduced_Candidates_DataSet.CatColor, dropna = False)
@@ -481,6 +485,12 @@ class HR_Diagram_Generator:
                 labels_y_axis.append(int(element))
                 temp.append(label_index)
         
+        number = 0
+        for column in self.Reduced_Sectors_DataSet_Fqt_Cut.columns:
+            number += self.Reduced_Sectors_DataSet_Fqt_Cut[column].sum()
+
+        print(f"Given your selection of the colour and magnitude range, and cutting out errorous data, the HR Diagram now contains {number} stars")
+        
         if plot_candidates:
             print("The candidate coordinates are: ",x_values,y_values)
 
@@ -553,11 +563,10 @@ class HR_Diagram_Generator:
         cbar.ax.tick_params(labelsize = 20)
         cbar.set_label(label = "Number Density", fontsize = 20, fontname = "Times New Roman")
         #cbar.set_ticks([1,10,100])
-        cbar.set_ticklabels([round(cbar.vmin),round(np.sqrt((cbar.vmax-cbar.vmin))),round(cbar.vmax)])
+        cbar.set_ticklabels([round(cbar.vmin),round(np.sqrt((cbar.vmax-cbar.vmin))),round(cbar.vmax,-1)])
 
         for l in cbar.ax.yaxis.get_ticklabels():
             l.set_family("Times New Roman")
-
         if plot_candidates:
             sns.scatterplot(x = x_values,y = y_values, s = 30, color = 'navy', markers = ["*"], edgecolors = 'black')
 
@@ -581,7 +590,7 @@ class HR_Diagram_Generator:
         print(start_index_c,end_index_c,start_index_m,end_index_m)
         plt.grid()
 
-        Figure_4.savefig("HR_Diagram.png", bbox_inches = 'tight', dpi = 400, facecolor = 'w')
+        Figure_4.savefig("HR_Diagram.png", bbox_inches = 'tight', dpi = image_resolution, facecolor = 'w')
         time_interval = time.time()-start_time
         print("This process took: ",time_interval)
 
