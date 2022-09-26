@@ -1,4 +1,4 @@
-from tkinter import Y
+from msilib.schema import File
 import numpy as np
 import time
 from statistics import mean
@@ -151,47 +151,108 @@ class HR_Diagram_Generator:
         average_distance_index = mean(difference_1)
         return average_distance_columns,average_distance_index
 
-    def __init__(self, Sectors):
-        self.Sectors_DataSet_Original = pd.DataFrame()
+    def add_Sectors_Stars(self,Sectors):
         try:
-            for Sector in Sectors:
-                self.Sectors_DataSet_Original = pd.concat([self.Sectors_DataSet_Original,pd.read_csv(Sector)])
+            if type(Sectors) == str and Sectors != '':
+                self.Sectors_DataSet_Original = pd.read_csv(Sectors)
+            elif type(Sectors) == list:
+                self.Sectors_DataSet_Original = pd.DataFrame()
+                for Sector in Sectors:
+                    if Sector != '':
+                        self.Sectors_DataSet_Original = pd.concat([self.Sectors_DataSet_Original,pd.read_csv(Sector)])
+            else:
+                print("The Sectors data is not a file or a list of files. Try again.")
+                raise FileNotFoundError
             self.Sectors_DataSet_Original.drop_duplicates(subset = ["source_id"],inplace = True)
-        except:
-            print("Entered in bad file paths")
-    def add_Candidate_Stars(self,Candidates):
-        self.Candidates_DataSet = pd.read_csv(Candidates[0])
-        try:
-            for index in range(1,len(Candidates)):
-                Candidate_read = pd.read_csv(Candidates[index])
-                self.Candidates_DataSet.set_index('source_id').join(Candidate_read.set_index('source_id'),lsuffix = 'teff_gspphot')
         except IndexError:
-            print("Out_Of_Bounds")
+            print("Index out of bounds")
+            raise IndexError
+        except FileNotFoundError:
+            print("Entered in bad file paths")
+            raise FileNotFoundError
+
+    def add_Candidate_Stars(self,Candidates):
+        try:
+            if type(Candidates) == str and Candidates != '':
+                self.Candidates_DataSet = pd.read_csv(Candidates)
+            elif type(Candidates) == list:
+                if Candidates[0] != '':
+                    self.Candidates_DataSet = pd.read_csv(Candidates[0])
+                for index in range(1,len(Candidates)):
+                    Candidate_read = pd.read_csv(Candidates[index])
+                    if Candidate_read != '':
+                        self.Candidates_DataSet.set_index('source_id').join(Candidate_read.set_index('source_id'),lsuffix = 'teff_gspphot')
+            else:
+                print("The Candidates data is not a file or a list of files. Try again.")
+        except IndexError:
+            print("Index out of bounds")
+            raise IndexError
+        except FileNotFoundError:
+            print("Entered in bad file paths")
+            raise FileNotFoundError
 
     def get_length_Of_Sector_DataSet(self):
         return len(self.Sectors_DataSet_Original)
 
-    def Plot_HR_Diagram_Using_Heatmap(self,Distance_Measure,Magnitude_Measure,Color_Measure,bin_resolution = "Default",Magnitude_Range = "Default",Color_Range = "Default",plot_candidates = True,filter = 0,image_resolution = 400, filter_range = [0]):
+    def Plot_HR_Diagram_Using_Heatmap(self,Distance_Measure,Magnitude_Measure,Color_Measure,bin_resolution = "Default",Magnitude_Range = "Default",Color_Range = "Default",plot_candidates = True,plot_sectors = True,filter = np.array([0]),image_resolution = 400,filter_choice = 0):
         
         start_time = time.time()
         self.Sectors_DataSet = self.Sectors_DataSet_Original.copy()
         Maximum_index_Sectors = len(self.Sectors_DataSet)
-        self.Sectors_DataSet = self.Sectors_DataSet.iloc[:Maximum_index_Sectors-filter]
+        try:
+            self.Sectors_DataSet = self.Sectors_DataSet.iloc[:Maximum_index_Sectors-filter_choice]
+        except IndexError:
+            print("filter greater than maximum amount of stars")
+            raise IndexError
+        except:
+            print("The filter you entered is invalid")
+            raise ValueError
+        
+        try:
+            self.Sectors_DataSet[Color_Measure]
+        except KeyError:
+            print("The Color measure you have entered does not exist in the Sector Dataset, try again")
+            raise KeyError
+        
+        if plot_candidates:
+            try:
+                self.Candidates_DataSet[Color_Measure]
+            except KeyError:
+                print("The Color measure you have entered does not exist in the Candidate Dataset, try again")
+                raise KeyError
 
         print("The original number of stars plotted from the Sectors DataSet is: ",len(self.Sectors_DataSet))
 
-        if re.match("parallax",Distance_Measure[0]):
-            self.Sectors_DataSet['Distance'] = 1/(self.Sectors_DataSet[Distance_Measure[0]]/1000)
-            self.Sectors_DataSet['Absolute_Magnitude'] = self.Sectors_DataSet[Magnitude_Measure] - 5*np.log10(self.Sectors_DataSet.Distance/10)
-           
-            self.Filled_Parallax_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.parallax.isnull() == False])
-            self.Empty_Parallax_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.parallax.isnull() == True])
-            self.Missing_Parallax_Percentage_Sectors = self.Empty_Parallax_Sectors/(self.Empty_Parallax_Sectors+self.Filled_Parallax_Sectors)*100
-            print(f"The percentage of the Sectors DataSet with missing parallax is {round(self.Missing_Parallax_Percentage_Sectors,3)}%")
+        if re.match("parallax",Distance_Measure[0]) and plot_sectors:
+            try:
+                self.Sectors_DataSet['Distance'] = 1/(self.Sectors_DataSet[Distance_Measure[0]]/1000)
+            except KeyError:
+                print("The Sector Distance Measure you entered does not exist in the table, try again.")
+                raise KeyError
+            try:
+                self.Sectors_DataSet['Absolute_Magnitude'] = self.Sectors_DataSet[Magnitude_Measure] - 5*np.log10(self.Sectors_DataSet.Distance/10)
+            except KeyError:
+                print("The Sector Magnitude measure you entered does not exist in the table, try again.")
+                raise KeyError
+
+            self.Filled_Distance_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.Distance.isnull() == False])
+            self.Empty_Distance_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.Distance.isnull() == True])
+            self.Missing_Distance_Percentage_Sectors = self.Empty_Distance_Sectors/(self.Empty_Distance_Sectors+self.Filled_Distance_Sectors)*100
+            print(f"The percentage of the Sectors DataSet with missing parallax data is {round(self.Missing_Distance_Percentage_Sectors,3)}%")
             
-        else:
-            self.Sectors_DataSet.rename(columns = {Distance_Measure[0]: 'Distance'}, inplace = True)
-            self.Sectors_DataSet['Absolute_Magnitude'] = self.Sectors_DataSet[Magnitude_Measure] - 5*np.log10(self.Sectors_DataSet.Distance/10)
+        elif plot_sectors:
+            try:
+                self.Sectors_DataSet[Distance_Measure[0]]
+                self.Sectors_DataSet.rename(columns = {Distance_Measure[0]: 'Distance'}, inplace = True)
+            except KeyError:
+                print("The Sector Distance Measure you provided does not exist in the table try again.")
+                raise KeyError
+
+            try:
+                self.Sectors_DataSet['Absolute_Magnitude'] = self.Sectors_DataSet[Magnitude_Measure] - 5*np.log10(self.Sectors_DataSet.Distance/10)
+            except KeyError:
+                print("The Sector Magnitude Measure you have provided does not exist in the table, try again.")
+                raise KeyError
             
             self.Filled_Distance_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.Distance.isnull() == False])
             self.Empty_Distance_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.Distance.isnull() == True])
@@ -199,17 +260,35 @@ class HR_Diagram_Generator:
             print(f"The percentage of the Sectors DataSet with missing distances is {round(self.Missing_Distance_Percentage_Sectors,3)}%")
             
         if re.match('parallax', Distance_Measure[1]) and plot_candidates:
-            self.Candidates_DataSet['Distance'] = 1/(self.Candidates_DataSet[Distance_Measure[1]]/1000)
-            self.Candidates_DataSet['Absolute_Magnitude'] = self.Candidates_DataSet[Magnitude_Measure] -5*np.log10(self.Candidates_DataSet.Distance/10)
+            try:
+                self.Candidates_DataSet['Distance'] = 1/(self.Candidates_DataSet[Distance_Measure[1]]/1000)
+            except KeyError:
+                print("The candidate distance measure you entered does not exist in the table.")
+                raise KeyError
+
+            try:
+                self.Candidates_DataSet['Absolute_Magnitude'] = self.Candidates_DataSet[Magnitude_Measure] -5*np.log10(self.Candidates_DataSet.Distance/10)
+            except KeyError:
+                print("The Candidate Magnitude Measure you entered does not exist in the table")
+                raise KeyError
             
-            self.Filled_Parallax_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet.parallax.isnull() == False])
-            self.Empty_Parallax_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet.parallax.isnull() == True])
-            self.Missing_Parallax_Percentage_Candidates = self.Empty_Parallax_Candidates/(self.Empty_Parallax_Candidates+self.Filled_Parallax_Candidates)*100
-            print(f"The percentage of the Candidates DataSet with missing parallax is {round(self.Missing_Parallax_Percentage_Candidates,3)}%")
+            self.Filled_Distance_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet.Distance.isnull() == False])
+            self.Empty_Distance_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet.Distance.isnull() == True])
+            self.Missing_Distance_Percentage_Candidates = self.Empty_Distance_Candidates/(self.Empty_Distance_Candidates+self.Filled_Distance_Candidates)*100
+            print(f"The percentage of the Candidates DataSet with missing parallax is {round(self.Missing_Distance_Percentage_Candidates,3)}%")
 
         elif plot_candidates:
-            self.Candidates_DataSet.rename(columns = {Distance_Measure[1]:'Distance'}, inplace = True)
-            self.Candidates_DataSet['Absolute_Magnitude'] = self.Candidates_DataSet[Magnitude_Measure] -5*np.log10(self.Candidates_DataSet.Distance/10)
+            try:
+                self.Sectors_DataSet[Distance_Measure[1]]
+                self.Candidates_DataSet.rename(columns = {Distance_Measure[1]:'Distance'}, inplace = True)
+            except KeyError:
+                print("The Candidate Distance measure you provided does not exist in the table, try again")
+                raise KeyError
+            try:
+                self.Candidates_DataSet['Absolute_Magnitude'] = self.Candidates_DataSet[Magnitude_Measure] -5*np.log10(self.Candidates_DataSet.Distance/10)
+            except KeyError:
+                print("The Candidate Magnitude measure you provided does not exist in the table, try again.")
+                raise KeyError
             
             self.Filled_Distance_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet.Distance.isnull() == False])
             self.Empty_Distance_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet.Distance.isnull() == True])
@@ -218,283 +297,329 @@ class HR_Diagram_Generator:
         
         if plot_candidates:
             self.Candidates_DataSet.drop_duplicates(subset = 'Absolute_Magnitude',inplace = True)
+            try:
+                self.Filled_Colors_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet[Color_Measure].isnull() == False])
+                self.Empty_Colors_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet[Color_Measure].isnull() == True])
+                self.Missing_Color_Percentage_Candidates = self.Empty_Colors_Candidates/(self.Empty_Colors_Candidates+self.Filled_Colors_Candidates)*100
+                print(f"The percentage of the Candidates DataSet with missing colors is {round(self.Missing_Color_Percentage_Candidates,3)}%")
+            except KeyError:
+                print("You have provided a colour measure that does not exist in the table, try again.")
+                raise KeyError
 
-            self.Filled_Colors_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet.bp_rp.isnull() == False])
-            self.Empty_Colors_Candidates = len(self.Candidates_DataSet[self.Candidates_DataSet.bp_rp.isnull() == True])
-            self.Missing_Color_Percentage_Candidates = self.Empty_Colors_Candidates/(self.Empty_Colors_Candidates+self.Filled_Colors_Candidates)*100
-            print(f"The percentage of the Candidates DataSet with missing colors is {round(self.Missing_Color_Percentage_Candidates,3)}%")
-        
-        if type(Color_Range) == str:
+        if type(Color_Range) == str and plot_sectors:
                 Color_Range = [self.Sectors_DataSet[Color_Measure].min(),self.Sectors_DataSet[Color_Measure].max(),0.5]
-        if type(Magnitude_Range) == str:
+        if type(Magnitude_Range) == str and plot_sectors:
                 Magnitude_Range = [self.Sectors_DataSet[Magnitude_Measure].min(),self.Sectors_DataSet[Magnitude_Measure].max(),0.5]
         
-        print("The Color_Range and Magnitude_Range are: " ,Color_Range,Magnitude_Range)  
+        if type(Color_Range) != list and plot_sectors:
+            print("You have neither typed in the colour range as default or entered in a list of values, please try again.")
+            raise ValueError
+        if type(Magnitude_Range) != list and plot_sectors:
+            print("You have neither typed in the magnitude range as default or entered in a list, try again.")
+            raise ValueError
         
-        self.Filled_Colors_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.bp_rp.isnull() == False])
-        self.Empty_Colors_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet.bp_rp.isnull() == True])
-        self.Missing_Color_Percentage_Sectors = self.Empty_Colors_Sectors/(self.Empty_Colors_Sectors+self.Filled_Colors_Sectors)*100
-        print(f"The percentage of the Sectors DataSet with missing colors is {round(self.Missing_Color_Percentage_Sectors,3)}%")
+        if len(Color_Range) != 3:
+            print("You have entered a Color_Range with a list length not equal to 3, try again.")
+            raise ValueError
+        if len(Magnitude_Range) != 3:
+            print("You have entered a Magnitude_Range with a list length not equal to 3, try again.")
+            raise ValueError
+
+        print("The Color_Range: ",Color_Range)
+        print("The Magnitude_Range: ",Magnitude_Range)  
         
-        if re.match("parallax",Distance_Measure[0]):
-            A = self.Sectors_DataSet[self.Sectors_DataSet.bp_rp.isnull() == True]
+        if plot_sectors:
+            self.Filled_Colors_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet[Color_Measure].isnull() == False])
+            self.Empty_Colors_Sectors = len(self.Sectors_DataSet[self.Sectors_DataSet[Color_Measure].isnull() == True])
+            self.Missing_Color_Percentage_Sectors = self.Empty_Colors_Sectors/(self.Empty_Colors_Sectors+self.Filled_Colors_Sectors)*100
+            print(f"The percentage of the Sectors DataSet with missing colors is {round(self.Missing_Color_Percentage_Sectors,3)}%")
+        
+        if re.match("parallax",Distance_Measure[0]) and plot_sectors:
+            A = self.Sectors_DataSet[self.Sectors_DataSet[Color_Measure].isnull() == True]
             B = A[A.parallax.isnull() == True]
-            self.Missing_Data_Percentage_Sectors = ((self.Empty_Parallax_Sectors+self.Empty_Colors_Sectors)-len(B))/len(self.Sectors_DataSet)*100
-            print(f"The percentage of the Sectors DataSet that will be missing from the HR_Diagram is {round(self.Missing_Data_Percentage_Sectors,3)}%")
-        else:
-            A = self.Sectors_DataSet[self.Sectors_DataSet.bp_rp.isnull() == True]
-            B = A[A.Distance.isnull() == True]
             self.Missing_Data_Percentage_Sectors = ((self.Empty_Distance_Sectors+self.Empty_Colors_Sectors)-len(B))/len(self.Sectors_DataSet)*100
+            print(f"The percentage of the Sectors DataSet that will be missing from the HR_Diagram is {round(self.Missing_Data_Percentage_Sectors,3)}%")
+        elif plot_sectors:
+            A = self.Sectors_DataSet[self.Sectors_DataSet[Color_Measure].isnull() == True]
+            B = A[A.Distance.isnull() == True]
+            self.Missing_Datap_Percentage_Sectors = ((self.Empty_Distance_Sectors+self.Empty_Colors_Sectors)-len(B))/len(self.Sectors_DataSet)*100
             print(f"The percentage of the Sectors DataSet that will be missing from the HR_Diagram is {round(self.Missing_Data_Percentage_Sectors,3)}%")
         
         if plot_candidates and  re.match("parallax",Distance_Measure[1]):
-            A = self.Candidates_DataSet[self.Candidates_DataSet.bp_rp.isnull() == True]
+            A = self.Candidates_DataSet[self.Candidates_DataSet[Color_Measure].isnull() == True]
             B = A[A.parallax.isnull() == True]
-            self.Missing_Data_Percentage_Candidates = ((self.Empty_Parallax_Candidates+self.Empty_Colors_Candidates)-len(B))/len(self.Candidates_DataSet)*100
+            self.Missing_Data_Percentage_Candidates = ((self.Empty_Distance_Candidates+self.Empty_Colors_Candidates)-len(B))/len(self.Candidates_DataSet)*100
             print(f"The percentage of the Candidates DataSet that will be missing from the HR_Diagram is {round(self.Missing_Data_Percentage_Candidates,3)}%")
         elif plot_candidates:
-            A = self.Candidates_DataSet[self.Candidates_DataSet.bp_rp.isnull() == True]
+            A = self.Candidates_DataSet[self.Candidates_DataSet[Color_Measure].isnull() == True]
             B = A[A.Distance.isnull() == True]
             self.Missing_Data_Percentage_Candidates = ((self.Empty_Distance_Candidates+self.Empty_Colors_Candidates)-len(B))/len(self.Candidates_DataSet)*100
             print(f"The percentage of the Candidates DataSet that will be missing from the HR_Diagram is {round(self.Missing_Data_Percentage_Candidates,3)}%")
         
-        self.Sectors_DataSet = self.Sectors_DataSet[self.Sectors_DataSet.parallax.ge(0)]
-        self.Sectors_DataSet = self.Sectors_DataSet[self.Sectors_DataSet.parallax_error < 0.4]
-
-        if type(bin_resolution) == str:
-            bin_resolution = 0.0009*len(self.Sectors_DataSet)+1000
-
-        self.Sectors_DataSet['CatAbsMag'] = pd.cut(self.Sectors_DataSet.Absolute_Magnitude,bins = bin_resolution, ordered = True)
-        self.Sectors_DataSet['CatColor'] = pd.cut(self.Sectors_DataSet[Color_Measure],bins = bin_resolution, ordered = True)
-
-        lists = []
-        for interval in self.Sectors_DataSet.CatColor.cat.categories:
-            list_element = re.sub(r'[][()]+','',str(interval)).replace(","," ").split()
-            lists.append(float(list_element[0]))
-            lists.append(float(list_element[1]))
-        data = {'row':lists}
-        Lister = pd.DataFrame(data)
-        Lister.drop_duplicates(inplace = True)
-        bins_Color = [getattr(row,'row') for row in Lister.itertuples()]
-
-        lists = []
-        for interval in self.Sectors_DataSet.CatAbsMag.cat.categories:
-            list_element = re.sub(r'[][()]+','',str(interval)).replace(","," ").split()
-            lists.append(float(list_element[0]))
-            lists.append(float(list_element[1]))
-
-        data = {'row':lists}
-        Lister = pd.DataFrame(data)
-        Lister.drop_duplicates(inplace = True)
-        bins_CatsAbsMag = [getattr(row,'row') for row in Lister.itertuples()]
-
-        if plot_candidates:
-            self.Candidates_DataSet['CatColor'] = pd.cut(self.Candidates_DataSet[Color_Measure],bins = bins_Color,ordered = True)
-            self.Candidates_DataSet['CatAbsMag'] = pd.cut(self.Candidates_DataSet.Absolute_Magnitude,bins = bins_CatsAbsMag, ordered = True)
-        
-        self.Reduced_Sectors_DataSet = self.Sectors_DataSet[['CatColor','CatAbsMag']]
-        self.Reduced_Sectors_DataSet_Fqt = pd.crosstab(index = self.Reduced_Sectors_DataSet.CatAbsMag,columns = self.Reduced_Sectors_DataSet.CatColor,dropna = False)
-        self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.rename(columns = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
-        self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
-        self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.fillna(0)
-        
-        self.Reduced_Sectors_DataSet_Fqt.replace(to_replace = np.arange(0,2,1),value = 0,inplace = True)
-
-        if plot_candidates:
-            self.Reduced_Candidates_DataSet = self.Candidates_DataSet[["CatColor","CatAbsMag"]]
-            self.Reduced_Candidates_Fqt = pd.crosstab(index = self.Reduced_Candidates_DataSet.CatAbsMag,columns = self.Reduced_Candidates_DataSet.CatColor, dropna = False)
-            self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(columns = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
-            self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
-            self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.fillna(0)
-        
-        avg_dist_col_sector,avg_dist_in_sector = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt)
-        avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt)
-        Sector_Norm = self.Extend_Table(self.Reduced_Sectors_DataSet_Fqt,avg_dist_in_sector,avg_dist_col_sector,Color_Range,Magnitude_Range)
-        if plot_candidates:
-            Candidates_Norm = self.Extend_Table(self.Reduced_Candidates_Fqt,avg_dist_in_candidates,avg_dist_col_candidates,Color_Range,Magnitude_Range)
-
-        self.Reduced_Sectors_DataSet_Fqt = Sector_Norm.copy()
-        if plot_candidates:    
-            self.Reduced_Candidates_Fqt = Candidates_Norm.copy()
-        
-        value_drop_row,value_drop_column = 0.009,0.009
-        comparison_row,comparison_column = 0.01,0.01
-        value_chosen_row = 10
-        value_chosen_column = 10
-        for incrementor in range(0,100):
-            for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt.index.values):
-                if abs(value) < abs(value_drop_row):
-                    zeropoint_row = index
-                    value_chosen_row = value
+        if plot_sectors and re.match('parallax',Distance_Measure[0]):
+            self.Sectors_DataSet = self.Sectors_DataSet[self.Sectors_DataSet.parallax.ge(0)]
             try:
-                if abs(value_chosen_row) < abs(comparison_row):
-                    comparison_row = value_chosen_row
-                    value_drop_row = value_chosen_row
+                self.Sectors_DataSet = self.Sectors_DataSet[self.Sectors_DataSet.parallax_error < 0.4]
+            except KeyError:
+                print("You have not provided the error for the parallax as 'parallax_error', the program will continue nevertheless.")
+
+            if type(bin_resolution) == str:
+                bin_resolution = round(0.0009*len(self.Sectors_DataSet)+1000)
+        
+            try:
+                self.Sectors_DataSet['CatAbsMag'] = pd.cut(self.Sectors_DataSet.Absolute_Magnitude,bins = bin_resolution, ordered = True)
+                self.Sectors_DataSet['CatColor'] = pd.cut(self.Sectors_DataSet[Color_Measure],bins = bin_resolution, ordered = True)
             except:
-                pass
+                print("Attempted to cut the continous Sector data into discrete data and failed. Try again.")
+                raise ValueError
+
+            lists = []
+            for interval in self.Sectors_DataSet.CatColor.cat.categories:
+                list_element = re.sub(r'[][()]+','',str(interval)).replace(","," ").split()
+                lists.append(float(list_element[0]))
+                lists.append(float(list_element[1]))
+            data = {'row':lists}
+            Lister = pd.DataFrame(data)
+            Lister.drop_duplicates(inplace = True)
+            bins_Color = [getattr(row,'row') for row in Lister.itertuples()]
+
+            lists = []
+            for interval in self.Sectors_DataSet.CatAbsMag.cat.categories:
+                list_element = re.sub(r'[][()]+','',str(interval)).replace(","," ").split()
+                lists.append(float(list_element[0]))
+                lists.append(float(list_element[1]))
+
+            data = {'row':lists}
+            Lister = pd.DataFrame(data)
+            Lister.drop_duplicates(inplace = True)
+            bins_CatsAbsMag = [getattr(row,'row') for row in Lister.itertuples()]
+
+            if plot_candidates:
+                try:
+                    self.Candidates_DataSet['CatColor'] = pd.cut(self.Candidates_DataSet[Color_Measure],bins = bins_Color,ordered = True)
+                    self.Candidates_DataSet['CatAbsMag'] = pd.cut(self.Candidates_DataSet.Absolute_Magnitude,bins = bins_CatsAbsMag, ordered = True)
+                except:
+                    print("Attempted to cut the continous Candidate into discrete data and failed. Try again.")
+                    raise ValueError
         
-            for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt.columns.values):
-                if abs(value) < abs(value_drop_column):
-                    zeropoint_column = index
-                    value_chosen_column = value
-            try:
-                if abs(value_chosen_column) < abs(comparison_column):
-                    comparison_column = value_chosen_column
-                    value_drop_column = value_chosen_column    
-            except:
-                pass
-            try:
-                zeropoint_row
-            except NameError:
-                value_drop_row *= 1.05
-                comparison_row *= 1.05
-            try:
-                zeropoint_column
-            except NameError:
-                value_drop_column *= 1.05
-                comparison_column *= 1.05
-        try:
-            zero_points = [zeropoint_row,zeropoint_column]
-        except:
-            print("Zeropoints not found")
-            zero_points = "NaN"
+            self.Reduced_Sectors_DataSet = self.Sectors_DataSet[['CatColor','CatAbsMag']]
+            self.Reduced_Sectors_DataSet_Fqt = pd.crosstab(index = self.Reduced_Sectors_DataSet.CatAbsMag,columns = self.Reduced_Sectors_DataSet.CatColor,dropna = False)
+            self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.rename(columns = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
+            self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
+            self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.fillna(0)
+        
+
+            self.Reduced_Sectors_DataSet_Fqt.replace(to_replace = filter, value = 0,inplace = True)
+
+            if plot_candidates:
+                self.Reduced_Candidates_DataSet = self.Candidates_DataSet[["CatColor","CatAbsMag"]]
+                self.Reduced_Candidates_Fqt = pd.crosstab(index = self.Reduced_Candidates_DataSet.CatAbsMag,columns = self.Reduced_Candidates_DataSet.CatColor, dropna = False)
+                self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(columns = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
+                self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
+                self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.fillna(0)
+        
+                
+            avg_dist_col_sector,avg_dist_in_sector = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt)
+            avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt)
+            Sector_Norm = self.Extend_Table(self.Reduced_Sectors_DataSet_Fqt,avg_dist_in_sector,avg_dist_col_sector,Color_Range,Magnitude_Range)
+
+            if plot_candidates:
+                Candidates_Norm = self.Extend_Table(self.Reduced_Candidates_Fqt,avg_dist_in_candidates,avg_dist_col_candidates,Color_Range,Magnitude_Range)
 
         
-        self.padding_start_m = -0.1
-        self.padding_end_m = 0.1
-
-        self.padding_start_c = 0.0
-        self.padding_end_c = 0.02
-
-        start_m = Magnitude_Range[0]+self.padding_start_m
-        end_m = Magnitude_Range[1]+self.padding_end_m
-
-        start_c = Color_Range[0]+self.padding_start_c
-        end_c = Color_Range[1]+self.padding_end_c
-
-        start_index_m = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,start_m,0.02,"rows",zero_points)[0]
-        end_index_m = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,end_m,0.008,"rows",zero_points)[0]
-        start_index_c = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,start_c,0.008,"columns",zero_points)[0]
-        end_index_c = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,end_c,0.001,"columns",zero_points)[0]
-            
-        self.Reduced_Sectors_DataSet_Fqt_Cut = self.Reduced_Sectors_DataSet_Fqt.iloc[start_index_m:end_index_m+1,start_index_c:end_index_c+1]
-        if plot_candidates:
-            print(self.Reduced_Candidates_DataSet.shape)
-            self.Reduced_Candidates_Fqt_Cut = self.Reduced_Candidates_Fqt.iloc[start_index_m:end_index_m+1,start_index_c:end_index_c+1]
-            
-            for index in range(0,len(self.Reduced_Candidates_Fqt_Cut.index.values)):
-                self.Reduced_Candidates_Fqt_Cut.index.values[index] = index
-            for index in range(0,len(self.Reduced_Candidates_Fqt_Cut.columns.values)):
-                self.Reduced_Candidates_Fqt_Cut.columns.values[index] = index
+            self.Reduced_Sectors_DataSet_Fqt = Sector_Norm.copy()
+            if plot_candidates:    
+                self.Reduced_Candidates_Fqt = Candidates_Norm.copy()
         
-        value_drop_row,value_drop_column = 0.1,0.1
-        comparison_row,comparison_column = 0.1,0.1
-        value_chosen_row = 10
-        value_chosen_column = 10
-
-        for incremator in range(0,100):
-            for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt_Cut.index.values):
-                if abs(value) < abs(value_drop_row):
-                    zeropoint_row = index
-                    value_chosen_row = value
-            if abs(value_chosen_row) < abs(comparison_row):
-                comparison_row = value_chosen_row
-                value_drop_row = value_chosen_row
-        
-            for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt_Cut.columns.values):
-                if abs(value) < abs(value_drop_column):
-                    zeropoint_column = index
-                    value_chosen_column = value
-    
-            if abs(value_chosen_column) < abs(comparison_column):
-                comparison_column = value_chosen_column
-                value_drop_column = value_chosen_column
-            try:
-                zeropoint_row
-            except NameError:
-                value_drop_row *= 1.05
-                comparison_row *= 1.05
-            try:
-                zeropoint_column
-            except NameError:
-                value_drop_column *= 1.05
-                comparison_column *= 1.05
+        if plot_sectors:
+            value_drop_row,value_drop_column = 0.009,0.009
+            comparison_row,comparison_column = 0.01,0.01
+            value_chosen_row = 10
+            value_chosen_column = 10
+            for incrementor in range(0,100):
+                for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt.index.values):
+                    if abs(value) < abs(value_drop_row):
+                        zeropoint_row = index
+                        value_chosen_row = value
+                try:
+                    if abs(value_chosen_row) < abs(comparison_row):
+                        comparison_row = value_chosen_row
+                        value_drop_row = value_chosen_row
+                except:
+                    pass
+                    
+                for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt.columns.values):
+                    if abs(value) < abs(value_drop_column):
+                        zeropoint_column = index
+                        value_chosen_column = value
+                try:
+                    if abs(value_chosen_column) < abs(comparison_column):
+                        comparison_column = value_chosen_column
+                        value_drop_column = value_chosen_column    
+                except:
+                    pass
+                try:
+                    zeropoint_row
+                except NameError:
+                    value_drop_row *= 1.05
+                    comparison_row *= 1.05
+                try:
+                    zeropoint_column
+                except NameError:
+                    value_drop_column *= 1.05
+                    comparison_column *= 1.05
             try:
                 zero_points = [zeropoint_row,zeropoint_column]
             except:
                 print("Zeropoints not found")
                 zero_points = "NaN"
 
-        tolerance = 0.008
-        Color_Range = np.arange(Color_Range[0],Color_Range[1]+0.5,Color_Range[2])
         
-        Positions_Of_Color_Ticks = []
-        for Color in Color_Range:
+            self.padding_start_m = -0.1
+            self.padding_end_m = 0.1
+
+            self.padding_start_c = 0.0
+            self.padding_end_c = 0.02
+
+            start_m = Magnitude_Range[0]+self.padding_start_m
+            end_m = Magnitude_Range[1]+self.padding_end_m
+
+            start_c = Color_Range[0]+self.padding_start_c
+            end_c = Color_Range[1]+self.padding_end_c
+
+            start_index_m = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,start_m,0.02,"rows",zero_points)[0]
+            end_index_m = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,end_m,0.008,"rows",zero_points)[0]
+            start_index_c = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,start_c,0.008,"columns",zero_points)[0]
+            end_index_c = self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt,end_c,0.001,"columns",zero_points)[0]
+
             try:
-                Positions_Of_Color_Ticks.append(self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Color,tolerance,"columns",zero_points)[0])
-            except:
-                print("Could not find color ",self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Color,tolerance,"columns",zero_points))
-        print("Colour Range: ",Color_Range)
-        for position in Positions_Of_Color_Ticks:
-            print(self.Reduced_Sectors_DataSet_Fqt_Cut.columns[position])
-        Magnitudes_Range = np.arange(Magnitude_Range[0],Magnitude_Range[1]+0.5,Magnitude_Range[2])
-
-        Positions_Of_Magnitude_Ticks = []
-        for Magnitude in Magnitudes_Range:
-            try:
-                Positions_Of_Magnitude_Ticks.append(self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Magnitude,tolerance,"rows",zero_points)[0])
-            except:
-                print("Could not find Magnitude value: ",self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Magnitude,tolerance,"rows",zero_points))
-        print("Magnitude Range: ",Magnitudes_Range)
-        if plot_candidates:
-            self.Candidates_DataSet.dropna(subset = ["CatColor","CatAbsMag"],inplace = True)
-            mapping_tool_rows = {key:value for key,value in zip(self.Reduced_Sectors_DataSet_Fqt_Cut.index.values,self.Reduced_Candidates_Fqt_Cut.index.values)}
-            mapping_tool_columns = {key:value for key,value in zip(self.Reduced_Sectors_DataSet_Fqt_Cut,self.Reduced_Candidates_Fqt_Cut)}
-
-            x_values = []
-            for index,string in enumerate(self.Candidates_DataSet.CatColor):
+                self.Reduced_Sectors_DataSet_Fqt_Cut = self.Reduced_Sectors_DataSet_Fqt.iloc[start_index_m:end_index_m+1,start_index_c:end_index_c+1]
+            except IndexError:
+                print("The Colour and Magnitude Range you have entered is out of bounds for the Sectors dataset, please try again.")
+            
+            print("The shape of the Sectors_Dataset array is", self.Reduced_Sectors_DataSet.shape)
+            if plot_candidates:
+                print("The shape of the candidates dataSet is", self.Reduced_Candidates_DataSet.shape)
                 try:
-                    list_element = self.avg(re.sub(r'[][()]+','',str(string)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(string)).replace(","," ").split()[1])
-                    x_value = mapping_tool_columns.get(float(list_element))
-                    x_values.append(x_value)
+                    self.Reduced_Candidates_Fqt_Cut = self.Reduced_Candidates_Fqt.iloc[start_index_m:end_index_m+1,start_index_c:end_index_c+1]
                 except IndexError:
-                    print(index,string)
+                    print("The Colour and Magnitude Range you have entered are out of bounds for the candidate dataset, please try again")
 
-            y_values = []
-            for index,string in enumerate(self.Candidates_DataSet.CatAbsMag):
+                for index in range(0,len(self.Reduced_Candidates_Fqt_Cut.index.values)):
+                    self.Reduced_Candidates_Fqt_Cut.index.values[index] = index
+                for index in range(0,len(self.Reduced_Candidates_Fqt_Cut.columns.values)):
+                    self.Reduced_Candidates_Fqt_Cut.columns.values[index] = index
+        
+        if plot_sectors:  
+            value_drop_row,value_drop_column = 0.1,0.1
+            comparison_row,comparison_column = 0.1,0.1
+            value_chosen_row = 10
+            value_chosen_column = 10
+
+            for _ in range(0,100):
+                for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt_Cut.index.values):
+                    if abs(value) < abs(value_drop_row):
+                        zeropoint_row = index
+                        value_chosen_row = value
+                if abs(value_chosen_row) < abs(comparison_row):
+                    comparison_row = value_chosen_row
+                    value_drop_row = value_chosen_row
+
+                for index,value in enumerate(self.Reduced_Sectors_DataSet_Fqt_Cut.columns.values):
+                    if abs(value) < abs(value_drop_column):
+                        zeropoint_column = index
+                        value_chosen_column = value
+
+                if abs(value_chosen_column) < abs(comparison_column):
+                    comparison_column = value_chosen_column
+                    value_drop_column = value_chosen_column
                 try:
-                    list_element = self.avg(re.sub(r'[][()]+','',str(string)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(string)).replace(","," ").split()[1])
-                    y_values.append(mapping_tool_rows.get(float(list_element)))
-                except IndexError:
-                    print(index,string)
-        
-        labels_x_axis = []
-        for label_index in Positions_Of_Color_Ticks:
-            element = round(self.Reduced_Sectors_DataSet_Fqt_Cut.columns[label_index],1)
-            if abs(element) == 0.0:
-                element = abs(element)
-            labels_x_axis.append(element)
+                    zeropoint_row
+                except NameError:
+                    value_drop_row *= 1.05
+                    comparison_row *= 1.05
+                try:
+                    zeropoint_column
+                except NameError:
+                    value_drop_column *= 1.05
+                    comparison_column *= 1.05
+                try:
+                    zero_points = [zeropoint_row,zeropoint_column]
+                except:
+                    print("Zeropoints not found")
+                    zero_points = "NaN"
 
-        labels_y_axis = []
-        temp = []
-        for label_index in Positions_Of_Magnitude_Ticks:
-            element = round(self.Reduced_Sectors_DataSet_Fqt_Cut.index[label_index],1)
-            if element.is_integer() and element % 2 == 0:
-                if abs(element) == 0.0:
-                    element = abs(element)
-                labels_y_axis.append(int(element))
-                temp.append(label_index)
+            tolerance = 0.008
+            Color_Range = np.arange(Color_Range[0],Color_Range[1]+0.5,Color_Range[2])
         
-        number = 0
-        for column in self.Reduced_Sectors_DataSet_Fqt_Cut.columns:
-            number += self.Reduced_Sectors_DataSet_Fqt_Cut[column].sum()
-
-        print(f"Given your selection of the colour and magnitude range, and cutting out errorous data, the HR Diagram now contains {number} stars")
+            Positions_Of_Color_Ticks = []
+            for Color in Color_Range:
+                try:
+                    Positions_Of_Color_Ticks.append(self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Color,tolerance,"columns",zero_points)[0])
+                except:
+                    print("I Could not find the color ",self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Color,tolerance,"columns",zero_points))
+            """
+            print("Colour Range: ",Color_Range)
+            for position in Positions_Of_Color_Ticks:
+                print(self.Reduced_Sectors_DataSet_Fqt_Cut.columns[position])
+            """
+            Magnitudes_Range = np.arange(Magnitude_Range[0],Magnitude_Range[1]+0.5,Magnitude_Range[2])
+            Positions_Of_Magnitude_Ticks = []
+            for Magnitude in Magnitudes_Range:
+                try:
+                    Positions_Of_Magnitude_Ticks.append(self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Magnitude,tolerance,"rows",zero_points)[0])
+                except:
+                    print("Could not find Magnitude value: ",self.Bin_Locator(self.Reduced_Sectors_DataSet_Fqt_Cut,Magnitude,tolerance,"rows",zero_points))
+            #print("Magnitude Range: ",Magnitudes_Range)
         
-        if plot_candidates:
-            print("The candidate coordinates are: ",x_values,y_values)
+            if plot_candidates:
+                self.Candidates_DataSet.dropna(subset = ["CatColor","CatAbsMag"],inplace = True)
+                mapping_tool_rows = {key:value for key,value in zip(self.Reduced_Sectors_DataSet_Fqt_Cut.index.values,self.Reduced_Candidates_Fqt_Cut.index.values)}
+                mapping_tool_columns = {key:value for key,value in zip(self.Reduced_Sectors_DataSet_Fqt_Cut,self.Reduced_Candidates_Fqt_Cut)}
 
-        Positions_Of_Magnitude_Ticks_Adjusted = temp
+                x_values = []
+                for index,string in enumerate(self.Candidates_DataSet.CatColor):
+                    try:
+                        list_element = self.avg(re.sub(r'[][()]+','',str(string)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(string)).replace(","," ").split()[1])
+                        x_value = mapping_tool_columns.get(float(list_element))
+                        x_values.append(x_value)
+                    except IndexError:
+                        print("I cannot find this index, string pair: ",index,string)
+
+                y_values = []
+                for index,string in enumerate(self.Candidates_DataSet.CatAbsMag):
+                    try:
+                        list_element = self.avg(re.sub(r'[][()]+','',str(string)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(string)).replace(","," ").split()[1])
+                        y_values.append(mapping_tool_rows.get(float(list_element)))
+                    except IndexError:
+                        print("I cannot find this index, string pair:",index,string)
+            if plot_sectors:
+                labels_x_axis = []
+                for label_index in Positions_Of_Color_Ticks:
+                    element = round(self.Reduced_Sectors_DataSet_Fqt_Cut.columns[label_index],1)
+                    if abs(element) == 0.0:
+                        element = abs(element)
+                    labels_x_axis.append(element)
+
+                labels_y_axis = []
+                temp = []
+                for label_index in Positions_Of_Magnitude_Ticks:
+                    element = round(self.Reduced_Sectors_DataSet_Fqt_Cut.index[label_index],1)
+                    if abs(element) == 0.0:
+                        element = abs(element)
+                    labels_y_axis.append(element)
+                    temp.append(label_index)
+        
+                number = 0
+                for column in self.Reduced_Sectors_DataSet_Fqt_Cut.columns:
+                    number += self.Reduced_Sectors_DataSet_Fqt_Cut[column].sum()
+
+                print(f"Given your selection of the colour and magnitude range, and cutting out errorous data, the HR Diagram now contains {number} stars")
+        
+                #if plot_candidates:
+                    #print("The candidate coordinates are: ",x_values,y_values)
+
+                Positions_Of_Magnitude_Ticks_Adjusted = temp
 
         if plot_candidates:
             Figure_1= plt.figure()
@@ -550,56 +675,59 @@ class HR_Diagram_Generator:
                 plt.close()
             except:
                 print("No column called rv_amplitude_robust in dataset provided, thus no HR_Diagram_Radial_Plot has been produced")
-                
-        self.Reduced_Sectors_DataSet_Fqt_Cut = self.Reduced_Sectors_DataSet_Fqt_Cut.rename(columns = lambda x: self.nearest_base(x,1))
-        self.Reduced_Sectors_Data = self.Reduced_Sectors_DataSet_Fqt_Cut.rename(index = lambda x: self.nearest_base(x,1))
+        if plot_sectors:      
+            self.Reduced_Sectors_DataSet_Fqt_Cut = self.Reduced_Sectors_DataSet_Fqt_Cut.rename(columns = lambda x: self.nearest_base(x,1))
+            self.Reduced_Sectors_Data = self.Reduced_Sectors_DataSet_Fqt_Cut.rename(index = lambda x: self.nearest_base(x,1))
 
-        Figure_4 = plt.figure()
-        ax_4 = sns.heatmap(self.Reduced_Sectors_DataSet_Fqt_Cut,norm = LogNorm(),cmap = 'rocket', cbar_kws = {'label': 'Number Density','pad':0.01}, linewidths = 0)
-        plt.rc('font',size = 30)
-        cbar = ax_4.collections[0].colorbar
+            Figure_4 = plt.figure()
+            ax_4 = sns.heatmap(self.Reduced_Sectors_DataSet_Fqt_Cut,norm = LogNorm(),cmap = 'rocket', cbar_kws = {'label': 'Number Density','pad':0.01}, linewidths = 0)
+            plt.rc('font',size = 30)
+            cbar = ax_4.collections[0].colorbar
 
-        cbar.ax.get_yaxis().set_ticks([cbar.vmin,np.sqrt((cbar.vmax-cbar.vmin)),cbar.vmax])
-        cbar.ax.tick_params(labelsize = 20)
-        cbar.set_label(label = "Number Density", fontsize = 20, fontname = "Times New Roman")
-        #cbar.set_ticks([1,10,100])
-        cbar.set_ticklabels([round(cbar.vmin),round(np.sqrt((cbar.vmax-cbar.vmin))),round(cbar.vmax,-1)])
+            cbar.ax.get_yaxis().set_ticks([cbar.vmin,np.sqrt((cbar.vmax-cbar.vmin)),cbar.vmax])
+            cbar.ax.tick_params(labelsize = 20)
+            cbar.set_label(label = "Number Density", fontsize = 20, fontname = "Times New Roman")
+            #cbar.set_ticks([1,10,100])
+            cbar.set_ticklabels([round(cbar.vmin),round(np.sqrt((cbar.vmax-cbar.vmin))),round(cbar.vmax,-1)])
 
-        for l in cbar.ax.yaxis.get_ticklabels():
-            l.set_family("Times New Roman")
-        if plot_candidates:
-            sns.scatterplot(x = x_values,y = y_values, s = 30, color = 'navy', markers = ["*"], edgecolors = 'black')
+            for l in cbar.ax.yaxis.get_ticklabels():
+                l.set_family("Times New Roman")
+            if plot_candidates:
+                sns.scatterplot(x = x_values,y = y_values, s = 30, color = 'navy', markers = ["*"], edgecolors = 'black')
 
-        ax_4.xaxis.set_major_locator(ticker.FixedLocator(Positions_Of_Color_Ticks))
-        ax_4.yaxis.set_major_locator(ticker.FixedLocator(Positions_Of_Magnitude_Ticks_Adjusted))
-        ax_4.tick_params(which = 'major', width = 0.5, length = 1, labelsize = 20)
-        ax_4.xaxis.set_major_formatter(ticker.FixedFormatter(labels_x_axis))
-        ax_4.yaxis.set_major_formatter(ticker.FixedFormatter(labels_y_axis))
-        pos = (end_index_m-(start_index_m+1))
+            ax_4.xaxis.set_major_locator(ticker.FixedLocator(Positions_Of_Color_Ticks))
+            ax_4.yaxis.set_major_locator(ticker.FixedLocator(Positions_Of_Magnitude_Ticks_Adjusted))
+            ax_4.tick_params(which = 'major', width = 0.5, length = 1, labelsize = 20)
+            ax_4.xaxis.set_major_formatter(ticker.FixedFormatter(labels_x_axis))
+            ax_4.yaxis.set_major_formatter(ticker.FixedFormatter(labels_y_axis))
+            pos = (end_index_m-(start_index_m+1))
 
-        plt.axhline(pos,color = 'black')
-        plt.axvline(1,color = 'black')
-        ax_4.set_xlabel(r"$G_{BP} - G_{RP}$",fontsize = 20,fontname = "Times New Roman")
-        ax_4.set_ylabel(r"$M_{G}$",fontsize = 20, fontname = "Times New Roman")
+            plt.axhline(pos,color = 'black')
+            plt.axvline(1,color = 'black')
+            ax_4.set_xlabel(r"$G_{BP} - G_{RP}$",fontsize = 20,fontname = "Times New Roman")
+            ax_4.set_ylabel(r"$M_{G}$",fontsize = 20, fontname = "Times New Roman")
 
-        for tick in ax_4.get_xticklabels():
-            tick.set_fontname("Times New Roman")
-        for tick in ax_4.get_yticklabels():
-            tick.set_fontname("Times New Roman")
+            for tick in ax_4.get_xticklabels():
+                tick.set_fontname("Times New Roman")
+            for tick in ax_4.get_yticklabels():
+                tick.set_fontname("Times New Roman")
     
-        print(start_index_c,end_index_c,start_index_m,end_index_m)
-        plt.grid()
+            #print(start_index_c,end_index_c,start_index_m,end_index_m)
+            plt.grid()
 
-        Figure_4.savefig("HR_Diagram.png", bbox_inches = 'tight', dpi = image_resolution, facecolor = 'w')
+            Figure_4.savefig("HR_Diagram.png", bbox_inches = 'tight', dpi = image_resolution, facecolor = 'w')
         time_interval = time.time()-start_time
-        print("This process took: ",time_interval)
+        print(f"This process took: {time_interval} seconds.")
+        try:
+            if filter_choice == 0:
+                print("The filter applied is: ",filter_choice)
+                plt.show()
 
-        if filter == 0:
-            print("The filter applied is: ",filter)
-            plt.show()
-
-        if filter != 0:
-            print("The filter applied is: ",filter)
-            plt.clf()
-            plt.close()
-            return time_interval
+            if filter_choice != 0:
+                print("The filter applied is: ",filter_choice)
+                plt.clf()
+                plt.close()
+        except:
+            print("Failed to produce final results. Try again")
+            raise ValueError
+        return time_interval,bin_resolution
