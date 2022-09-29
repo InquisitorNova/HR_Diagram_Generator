@@ -1,22 +1,22 @@
-with open(r"C:\Users\44730\Downloads\Cait_Cullen_HR_Diagram_Gaia_Source_ids_6.txt","r+") as file:
-    mess = file.readlines()
+with open(r"","r+") as file:
+    ids_list = file.readlines()
     GAIA_ids = []
     TIC_ids = []
-    for messy in mess:
-        if "--" in messy:
+    for ids in ids_list:
+        if "--" in ids:
             continue 
-        elif len(messy) >= 19:
-            GAIA_ids.append(messy)
+        elif len(ids) >= 19:
+            GAIA_ids.append(ids)
         else:
-            TIC_ids.append(messy)
+            TIC_ids.append(ids)
     file.close()
 
-with open(r"C:\Users\44730\Downloads\Cait_Cullen_HR_Diagram_Gaia_Source_ids_7.txt","w+") as file:
+with open(r"","w+") as file:
     for GAIA_id in GAIA_ids:
         file.write(str(GAIA_id))
     file.close()
 
-with open(r"C:\Users\44730\Downloads\Cait_Cullen_HR_Diagram_Gaia_Source_processed.txt","w+") as file:
+with open(r"","w+") as file:
     for TIC_id in TIC_ids:
         file.write(str(TIC_id))
     file.close()
