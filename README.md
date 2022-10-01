@@ -80,7 +80,7 @@ The image below shows the above in the command terminal.
 
 ![Screenshot 2022-10-01 135706](https://user-images.githubusercontent.com/97238126/193410681-426de176-81e5-446f-8a05-e6f7ee49b787.png)
 
-## Generating a HR diagram by importing the module
+### Generating a HR diagram by importing the module
 For those that are familiar with the python programming language, the text based user interface is simply obtaining the necessary data and then passing it to a function of the HR diagram Generator. Thus using python, the process of typing the data in is significantly quicker. Below I generated a HR diagram for 3 of the northern sectors by initialising a HR diagram generator object providing it with the file paths for the sector data and the information explained in the text based interface section of this readme.
 
 
