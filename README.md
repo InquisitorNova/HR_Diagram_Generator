@@ -87,6 +87,6 @@ For those that are familiar with the python programming language, the text based
 ![Screenshot 2022-10-01 144441](https://user-images.githubusercontent.com/97238126/193412823-cf72e322-325a-4b86-8162-ee699b7e4b3f.png) *This is screenshot showing the steps required to produce a HR diagram using the HR diagram Generator. The module is imported, a HR diagram generator object created. Sector data is then imported by passing a list of file paths to the add sector data method. The plot is then created by using the plot hr diagram using heatmap method and passing the values above.*
 
 
-![Screenshot 2022-10-01 145339](https://user-images.githubusercontent.com/97238126/193412879-4bf31eb2-37b1-4504-8567-636b8f376d34.png) *This is a screenshot showing the results of code above.
+![Screenshot 2022-10-01 145339](https://user-images.githubusercontent.com/97238126/193412879-4bf31eb2-37b1-4504-8567-636b8f376d34.png) *This is a screenshot showing the results of code above.*
 
 
