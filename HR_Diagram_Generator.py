@@ -556,10 +556,10 @@ class HR_Diagram_Generator:
         
             
             avg_dist_col_sector,avg_dist_in_sector = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt) # Finds the average separation between the average intervals
-            avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Candidates_DataSet_Fqt) # Finds the average separation between the average interval
             Sector_Norm = self.Extend_Table(self.Reduced_Sectors_DataSet_Fqt,avg_dist_in_sector,avg_dist_col_sector,Color_Range,Magnitude_Range) # Extends the frequency table to the users requirements
 
             if plot_candidates:
+                avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Candidates_DataSet_Fqt) # Finds the average separation between the average interval
                 Candidates_Norm = self.Extend_Table(self.Reduced_Candidates_Fqt,avg_dist_in_candidates,avg_dist_col_candidates,Color_Range,Magnitude_Range) # Extends the frequency table to the users requirements
 
         
