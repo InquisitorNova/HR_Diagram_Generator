@@ -559,7 +559,7 @@ class HR_Diagram_Generator:
             Sector_Norm = self.Extend_Table(self.Reduced_Sectors_DataSet_Fqt,avg_dist_in_sector,avg_dist_col_sector,Color_Range,Magnitude_Range) # Extends the frequency table to the users requirements
 
             if plot_candidates:
-                avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Candidates_DataSet_Fqt) # Finds the average separation between the average interval
+                avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Candidates_Fqt) # Finds the average separation between the average interval
                 Candidates_Norm = self.Extend_Table(self.Reduced_Candidates_Fqt,avg_dist_in_candidates,avg_dist_col_candidates,Color_Range,Magnitude_Range) # Extends the frequency table to the users requirements
 
         
@@ -894,10 +894,10 @@ class HR_Diagram_Generator:
             for tick in ax_4.get_yticklabels(): # Changes the font of the y tick labels to Times New Roman
                 tick.set_fontname("Times New Roman")
     
-            #print(start_index_c,end_index_c,start_index_m,end_index_m)
-            plt.grid() # Plots onto the figure a grid
+            print(start_index_c,end_index_c,start_index_m,end_index_m)
+            ax_4.grid() # Plots onto the figure a grid
 
-            Figure_4.savefig("HR_Diagram.png", bbox_inches = 'tight', dpi = image_resolution, facecolor = 'w') # Saves the figure
+            Figure_4.savefig("HR_Diagram_Complete.pdf", bbox_inches = 'tight', dpi = image_resolution, facecolor = 'w') # Saves the figure
         time_interval = time.time()-start_time # Calculates the run time
         print(f"This process took: {time_interval} seconds.") # Displays the time taken to execute the program
         try:
