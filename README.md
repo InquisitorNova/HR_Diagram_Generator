@@ -1,5 +1,7 @@
 # HR_Diagram_Generator
 The HR diagram is a small python project used to quickly produce HR diagrams. This readme will explain in detail the process I used to for obtaining the data I used to produce the images in the blog. A guide for how to use the HR diagram generator is then provided.
+## The data required for this program to run
+The HR diagram generator produces an observational Hertzpsrung Russell Diagram, a scatterplot of a stars' absolute magnitude vs it's colour. To produce the scatterplot it converts apparent magnitude values into absolute magnitudes and then plots this against the colour. For the function to work it requires a dataset in csv form containing a distance measure either a parallax column in mili arcseconds (mas) or distance column in parsecs. It also requires a column containing the apparent magnitude measure say photometric g band values. Finally it requires a column containing a colour index, say the Gaia BP RP colour index. The program then asks for adjustment details, the ranges of the x and y axis, the increments etc. Additional information on this is provided below.
 ## Obtaining the Data
 First, we need to obtain the TIC ids for the stars of the northern and southern ecliptic hemisphere that are observed by TESS. This is achieved by going to the MAST, 
 Mikulski Archive for Space Telescopes, archive of TESS light curves from full frame Images or "TESS-SPOC". SPOC refers to the TESS Science Processing Operations 
