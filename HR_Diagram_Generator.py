@@ -383,7 +383,7 @@ class HR_Diagram_Generator:
 
         elif plot_candidates:
             try:
-                self.Sectors_DataSet[Distance_Measure[1]]
+                self.Candidates_DataSet[Distance_Measure[1]]
                 self.Candidates_DataSet.rename(columns = {Distance_Measure[1]:'Distance'}, inplace = True)
             except KeyError:
                 print("The Candidate Distance measure you provided does not exist in the table, try again")
@@ -478,7 +478,7 @@ class HR_Diagram_Generator:
                 self.Sectors_DataSet = self.Sectors_DataSet[self.Sectors_DataSet.parallax_error < 0.4]
             except KeyError:
                 print("You have not provided the error for the parallax as 'parallax_error', the program will continue nevertheless.")
-                
+
         if plot_sectors:
         # Generates a bin resolution for diagram if the bin resolution is set to default
             if type(bin_resolution) == str:
@@ -883,7 +883,7 @@ class HR_Diagram_Generator:
             plt.axhline(pos,color = 'black') # Creates the x axis line
             plt.axvline(1,color = 'black') # Creates the y axis line 
 
-            
+            # For the scientists among you
             #ax_4.set_xlabel(r"$G_{BP} - G_{RP}$",fontsize = 20,fontname = "Times New Roman")
             #ax_4.set_ylabel(r"$M_{G}$",fontsize = 20, fontname = "Times New Roman")
             
