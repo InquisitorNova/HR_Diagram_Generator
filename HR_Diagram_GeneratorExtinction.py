@@ -884,7 +884,7 @@ class HR_Diagram_Generator:
 
             
             ax_4.set_xlabel(r"$G_{BP} - G_{RP} - E(BP - RP)[mag]$",fontsize = 20,fontname = "Times New Roman")
-            ax_4.set_ylabel(r"$G - 5log_{10}d  - A_g[mag]$",fontsize = 20, fontname = "Times New Roman")
+            ax_4.set_ylabel(r"$G - 5log_{10}d - A_g[mag]$",fontsize = 20, fontname = "Times New Roman")
             
             #ax_4.set_xlabel(f"{Color_Measure}",fontsize = 20,fontname = "Times New Roman") # Sets the label of the x axis
             #ax_4.set_ylabel(f"{Magnitude_Measure}",fontsize = 20, fontname = "Times New Roman") # Sets the label of y axis
