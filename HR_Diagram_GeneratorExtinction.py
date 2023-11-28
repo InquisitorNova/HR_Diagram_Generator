@@ -564,7 +564,6 @@ class HR_Diagram_Generator:
 
         
         self.Reduced_Sectors_DataSet_Fqt = Sector_Norm.copy() # Restores the data as reduced sectors frequency dataset
-        print(5)
         if plot_candidates:    
             self.Reduced_Candidates_Fqt = Candidates_Norm.copy() # Restores the data as reduced candidates frequency dataset
         
@@ -885,7 +884,7 @@ class HR_Diagram_Generator:
 
             
             ax_4.set_xlabel(r"$G_{BP} - G_{RP} - E(BP - RP)[mag]$",fontsize = 20,fontname = "Times New Roman")
-            ax_4.set_ylabel(r"$G - 5log_{10}d  + 5 - A_g[mag]$",fontsize = 20, fontname = "Times New Roman")
+            ax_4.set_ylabel(r"$G - 5log_{10}d  - A_g[mag]$",fontsize = 20, fontname = "Times New Roman")
             
             #ax_4.set_xlabel(f"{Color_Measure}",fontsize = 20,fontname = "Times New Roman") # Sets the label of the x axis
             #ax_4.set_ylabel(f"{Magnitude_Measure}",fontsize = 20, fontname = "Times New Roman") # Sets the label of y axis
