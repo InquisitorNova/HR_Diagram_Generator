@@ -479,93 +479,94 @@ class HR_Diagram_Generator:
             except KeyError:
                 print("You have not provided the error for the parallax as 'parallax_error', the program will continue nevertheless.")
         
-        # Generates a bin resolution for diagram if the bin resolution is set to default
-        if type(bin_resolution) == str:
-            bin_resolution = round(0.0009*len(self.Sectors_DataSet)+1000)
+        if plot_sectors:    
+            # Generates a bin resolution for diagram if the bin resolution is set to default
+            if type(bin_resolution) == str:
+                bin_resolution = round(0.0009*len(self.Sectors_DataSet)+1000)
         
-        # Transforms the the continous values of the absolute magnitude and colour into pandas intervals (Categoric Values)
-        try:
-            self.Sectors_DataSet['CatAbsMag'] = pd.cut(self.Sectors_DataSet.Absolute_Magnitude,bins = bin_resolution, ordered = True)
-            self.Sectors_DataSet['CatColor'] = pd.cut(self.Sectors_DataSet[Color_Measure],bins = bin_resolution, ordered = True)
-        except:
-            # Returns an error if it is unable to perform the operation
-            print("Attempted to cut the continous Sector data into discrete data and failed. Try again.")
-            raise ValueError
-            
-        # Determines the bin intervals of the Sector Dataset's Colour
-        lists = [] # Creates a list to store the intervals for Colours
-        for interval in self.Sectors_DataSet.CatColor.cat.categories: # Iterates through the panda intervals
-            list_element = re.sub(r'[][()]+','',str(interval)).replace(","," ").split() # Converts the pandas intervals into the lower bound and upper bound
-            lists.append(float(list_element[0])) # Adds the lower bound of the interval to the list
-            lists.append(float(list_element[1])) # Adds the upper bound of the interval to the list
-
-        data = {'row':lists} # Stores the data as a dictionary 
-        Lister = pd.DataFrame(data) # Converts the data to pandas dataframe
-        Lister.drop_duplicates(inplace = True) # Drops the duplicates in intervals
-        bins_Color = [getattr(row,'row') for row in Lister.itertuples()] # Extracts the intervals storing them as a list 
-
-        # Determines the bin intervals of the Sector Dataset's Magnitude, performs a repeat of the above
-        lists = []
-        for interval in self.Sectors_DataSet.CatAbsMag.cat.categories:
-            list_element = re.sub(r'[][()]+','',str(interval)).replace(","," ").split()
-            lists.append(float(list_element[0]))
-            lists.append(float(list_element[1]))
-
-        data = {'row':lists}
-        Lister = pd.DataFrame(data)
-        Lister.drop_duplicates(inplace = True)
-        bins_CatsAbsMag = [getattr(row,'row') for row in Lister.itertuples()]
-
-        # To ensure that the frequency tables for the Sector and Candidate data match we cut the colour and magnitude values of the candidate data into
-        # the same bins.
-        if plot_candidates:
+            # Transforms the the continous values of the absolute magnitude and colour into pandas intervals (Categoric Values)
             try:
-                # Convert the continous values into categoric values using the same bin intervals the sector data has.
-                self.Candidates_DataSet['CatColor'] = pd.cut(self.Candidates_DataSet[Color_Measure],bins = bins_Color,ordered = True)
-                self.Candidates_DataSet['CatAbsMag'] = pd.cut(self.Candidates_DataSet.Absolute_Magnitude,bins = bins_CatsAbsMag, ordered = True)
+                self.Sectors_DataSet['CatAbsMag'] = pd.cut(self.Sectors_DataSet.Absolute_Magnitude,bins = bin_resolution, ordered = True)
+                self.Sectors_DataSet['CatColor'] = pd.cut(self.Sectors_DataSet[Color_Measure],bins = bin_resolution, ordered = True)
             except:
-                # Raises an Error, should this process fail. Mainly for error checking processes
-                print("Attempted to cut the continous Candidate into discrete data and failed. Try again.")
+                # Returns an error if it is unable to perform the operation
+                print("Attempted to cut the continous Sector data into discrete data and failed. Try again.")
                 raise ValueError
+
+            # Determines the bin intervals of the Sector Dataset's Colour
+            lists = [] # Creates a list to store the intervals for Colours
+            for interval in self.Sectors_DataSet.CatColor.cat.categories: # Iterates through the panda intervals
+                list_element = re.sub(r'[][()]+','',str(interval)).replace(","," ").split() # Converts the pandas intervals into the lower bound and upper bound
+                lists.append(float(list_element[0])) # Adds the lower bound of the interval to the list
+                lists.append(float(list_element[1])) # Adds the upper bound of the interval to the list
+
+            data = {'row':lists} # Stores the data as a dictionary 
+            Lister = pd.DataFrame(data) # Converts the data to pandas dataframe
+            Lister.drop_duplicates(inplace = True) # Drops the duplicates in intervals
+            bins_Color = [getattr(row,'row') for row in Lister.itertuples()] # Extracts the intervals storing them as a list 
+
+            # Determines the bin intervals of the Sector Dataset's Magnitude, performs a repeat of the above
+            lists = []
+            for interval in self.Sectors_DataSet.CatAbsMag.cat.categories:
+                list_element = re.sub(r'[][()]+','',str(interval)).replace(","," ").split()
+                lists.append(float(list_element[0]))
+                lists.append(float(list_element[1]))
+
+            data = {'row':lists}
+            Lister = pd.DataFrame(data)
+            Lister.drop_duplicates(inplace = True)
+            bins_CatsAbsMag = [getattr(row,'row') for row in Lister.itertuples()]
+
+            # To ensure that the frequency tables for the Sector and Candidate data match we cut the colour and magnitude values of the candidate data into
+            # the same bins.
+            if plot_candidates:
+                try:
+                    # Convert the continous values into categoric values using the same bin intervals the sector data has.
+                    self.Candidates_DataSet['CatColor'] = pd.cut(self.Candidates_DataSet[Color_Measure],bins = bins_Color,ordered = True)
+                    self.Candidates_DataSet['CatAbsMag'] = pd.cut(self.Candidates_DataSet.Absolute_Magnitude,bins = bins_CatsAbsMag, ordered = True)
+                except:
+                    # Raises an Error, should this process fail. Mainly for error checking processes
+                    print("Attempted to cut the continous Candidate into discrete data and failed. Try again.")
+                    raise ValueError
         
-        """
-        The HR diagram uses data from a frequency table. The data is binned and at this point its colour and magnitude are an interval value.
-        The frequency table then renames the columns and rows using the average of the interval value of that pandas interval. By doing this we are making 
-        an approximation. The true colour may lie between 1.0000005 and 1.0000004 but it's reported colour will now be 1.00000045. This is fine because the number
-        of bins should be sufficiently high enough that this approximation is accurate enough for a figure, but is not accurate for a very low number of bins.
-        A low number of bins should thus be igorned.
-        """
+            """
+            The HR diagram uses data from a frequency table. The data is binned and at this point its colour and magnitude are an interval value.
+            The frequency table then renames the columns and rows using the average of the interval value of that pandas interval. By doing this we are making 
+            an approximation. The true colour may lie between 1.0000005 and 1.0000004 but it's reported colour will now be 1.00000045. This is fine because the number
+            of bins should be sufficiently high enough that this approximation is accurate enough for a figure, but is not accurate for a very low number of bins.
+            A low number of bins should thus be igorned.
+            """
 
-        # Isolates the columns needed for the Sector part of the HR diagram, then creates a frequency table from the sector data.
-        self.Reduced_Sectors_DataSet = self.Sectors_DataSet[['CatColor','CatAbsMag']] # Creates a dataframe consisting only of the Categoric Colour and Categoric Magnitude
-        self.Reduced_Sectors_DataSet_Fqt = pd.crosstab(index = self.Reduced_Sectors_DataSet.CatAbsMag,columns = self.Reduced_Sectors_DataSet.CatColor,dropna = False) # Creates the frequency dataframe.
-        self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.rename(columns = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1]))) # Converts the column names from pandas intervals to the average of that interval
-        self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1]))) # Converts the row names from pandas intervals to the average of that interval
-        self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.fillna(0) # Fill in the null values with zeros
+            # Isolates the columns needed for the Sector part of the HR diagram, then creates a frequency table from the sector data.
+            self.Reduced_Sectors_DataSet = self.Sectors_DataSet[['CatColor','CatAbsMag']] # Creates a dataframe consisting only of the Categoric Colour and Categoric Magnitude
+            self.Reduced_Sectors_DataSet_Fqt = pd.crosstab(index = self.Reduced_Sectors_DataSet.CatAbsMag,columns = self.Reduced_Sectors_DataSet.CatColor,dropna = False) # Creates the frequency dataframe.
+            self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.rename(columns = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1]))) # Converts the column names from pandas intervals to the average of that interval
+            self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1]))) # Converts the row names from pandas intervals to the average of that interval
+            self.Reduced_Sectors_DataSet_Fqt = self.Reduced_Sectors_DataSet_Fqt.fillna(0) # Fill in the null values with zeros
         
 
-        self.Reduced_Sectors_DataSet_Fqt.replace(to_replace = filter, value = 0,inplace = True) # To clear the HR diagram of mismatched data, a filter can be imposed that replaces all bins of a certain value with zero
+            self.Reduced_Sectors_DataSet_Fqt.replace(to_replace = filter, value = 0,inplace = True) # To clear the HR diagram of mismatched data, a filter can be imposed that replaces all bins of a certain value with zero
 
-        # Isolates the columns needed for the Candidate part of the HR diagram, then creates a frequency table from the sector data. Does the same as above.
-        if plot_candidates:
-            self.Reduced_Candidates_DataSet = self.Candidates_DataSet[["CatColor","CatAbsMag"]]
-            self.Reduced_Candidates_Fqt = pd.crosstab(index = self.Reduced_Candidates_DataSet.CatAbsMag,columns = self.Reduced_Candidates_DataSet.CatColor, dropna = False)
-            self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(columns = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
-            self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
-            self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.fillna(0)
+            # Isolates the columns needed for the Candidate part of the HR diagram, then creates a frequency table from the sector data. Does the same as above.
+            if plot_candidates:
+                self.Reduced_Candidates_DataSet = self.Candidates_DataSet[["CatColor","CatAbsMag"]]
+                self.Reduced_Candidates_Fqt = pd.crosstab(index = self.Reduced_Candidates_DataSet.CatAbsMag,columns = self.Reduced_Candidates_DataSet.CatColor, dropna = False)
+                self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(columns = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
+                self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.rename(index = lambda x: float(self.avg(re.sub(r'[][()]+','',str(x)).replace(","," ").split()[0],re.sub(r'[][()]+','',str(x)).replace(","," ").split()[1])))
+                self.Reduced_Candidates_Fqt = self.Reduced_Candidates_Fqt.fillna(0)
         
             
-        avg_dist_col_sector,avg_dist_in_sector = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt) # Finds the average separation between the average intervals
-        Sector_Norm = self.Extend_Table(self.Reduced_Sectors_DataSet_Fqt,avg_dist_in_sector,avg_dist_col_sector,Color_Range,Magnitude_Range) # Extends the frequency table to the users requirements
+            avg_dist_col_sector,avg_dist_in_sector = self.Avg_Finder(self.Reduced_Sectors_DataSet_Fqt) # Finds the average separation between the average intervals
+            Sector_Norm = self.Extend_Table(self.Reduced_Sectors_DataSet_Fqt,avg_dist_in_sector,avg_dist_col_sector,Color_Range,Magnitude_Range) # Extends the frequency table to the users requirements
 
-        if plot_candidates:
-            avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Candidates_Fqt) # Finds the average separation between the average interval
-            Candidates_Norm = self.Extend_Table(self.Reduced_Candidates_Fqt,avg_dist_in_candidates,avg_dist_col_candidates,Color_Range,Magnitude_Range) # Extends the frequency table to the users requirements
+            if plot_candidates:
+                avg_dist_col_candidates,avg_dist_in_candidates = self.Avg_Finder(self.Reduced_Candidates_Fqt) # Finds the average separation between the average interval
+                Candidates_Norm = self.Extend_Table(self.Reduced_Candidates_Fqt,avg_dist_in_candidates,avg_dist_col_candidates,Color_Range,Magnitude_Range) # Extends the frequency table to the users requirements
 
         
-        self.Reduced_Sectors_DataSet_Fqt = Sector_Norm.copy() # Restores the data as reduced sectors frequency dataset
-        if plot_candidates:    
-            self.Reduced_Candidates_Fqt = Candidates_Norm.copy() # Restores the data as reduced candidates frequency dataset
+            self.Reduced_Sectors_DataSet_Fqt = Sector_Norm.copy() # Restores the data as reduced sectors frequency dataset
+            if plot_candidates:    
+                self.Reduced_Candidates_Fqt = Candidates_Norm.copy() # Restores the data as reduced candidates frequency dataset
         
         # Finds the zeropoints using a slightly altered method to the method used by the bin locator
         if plot_sectors:
